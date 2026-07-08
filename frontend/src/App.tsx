@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, Sparkles, Brain, PanelLeft } from 'lucide-react';
-import { DEFAULT_ITEMS, DEFAULT_HABITS, DEFAULT_HIERARCHY } from './data';
 import { ActiveTab, BrainItem, Habit, AreaHierarchy, WorkspaceSelection } from './types';
+
+// Custom Hooks
+import { useSettings } from './hooks/useSettings';
+import { useAreas } from './hooks/useAreas';
+import { useProjects } from './hooks/useProjects';
+import { useTasks } from './hooks/useTasks';
+import { useHabits } from './hooks/useHabits';
+import { useCalendar } from './hooks/useCalendar';
 
 // Child view imports
 import Sidebar from './components/Sidebar';
@@ -26,74 +33,18 @@ export default function App() {
   });
   const [chatOpen, setChatOpen] = useState(false);
 
-  // Database states
-  const [items, setItems] = useState<BrainItem[]>([]);
-  const [habits, setHabits] = useState<Habit[]>([]);
-  const [hierarchy, setHierarchy] = useState<AreaHierarchy[]>([]);
+  // Hook integrations
+  const { settings, updateSettings, resetData } = useSettings();
+  const { hierarchy, updateHierarchy } = useAreas();
+  const { items, createTask, updateTask, deleteTask, assignTask, reorderTasks } = useTasks();
+  const { habits, addHabit, toggleHabitDay, deleteHabit, updateHabit } = useHabits();
+  const { calendarItems, scheduleItem } = useCalendar();
+
   const [selectedSubProject, setSelectedSubProject] = useState<WorkspaceSelection | null>(null);
 
-  // Theme selection state
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-
-  // Load from LocalStorage
-  useEffect(() => {
-    const storedItems = localStorage.getItem('ambit_brain_items');
-    const storedHabits = localStorage.getItem('ambit_habits');
-    const storedHierarchy = localStorage.getItem('ambit_hierarchy');
-    const storedTheme = localStorage.getItem('ambit_theme') as 'light' | 'dark' | null;
-
-    if (storedItems) {
-      setItems(JSON.parse(storedItems));
-    } else {
-      setItems(DEFAULT_ITEMS);
-      localStorage.setItem('ambit_brain_items', JSON.stringify(DEFAULT_ITEMS));
-    }
-
-    if (storedHabits) {
-      setHabits(JSON.parse(storedHabits));
-    } else {
-      setHabits(DEFAULT_HABITS);
-      localStorage.setItem('ambit_habits', JSON.stringify(DEFAULT_HABITS));
-    }
-
-    if (storedHierarchy) {
-      setHierarchy(JSON.parse(storedHierarchy));
-    } else {
-      setHierarchy(DEFAULT_HIERARCHY);
-      localStorage.setItem('ambit_hierarchy', JSON.stringify(DEFAULT_HIERARCHY));
-    }
-
-    if (storedTheme) {
-      setTheme(storedTheme);
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setTheme('dark');
-    }
-  }, []);
-
-  // Sync theme with HTML root class
-  useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('ambit_theme', theme);
-  }, [theme]);
-
-  // Save changes to LocalStorage helper
-  const saveItems = (updatedItems: BrainItem[]) => {
-    setItems(updatedItems);
-    localStorage.setItem('ambit_brain_items', JSON.stringify(updatedItems));
-  };
-
-  const saveHabits = (updatedHabits: Habit[]) => {
-    setHabits(updatedHabits);
-    localStorage.setItem('ambit_habits', JSON.stringify(updatedHabits));
-  };
-
-  const saveHierarchy = (updatedHierarchy: AreaHierarchy[]) => {
-    setHierarchy(updatedHierarchy);
-    localStorage.setItem('ambit_hierarchy', JSON.stringify(updatedHierarchy));
+  const theme = settings.theme;
+  const setTheme = (t: 'light' | 'dark') => {
+    updateSettings({ theme: t });
   };
 
   // 1. Capture new concepts (with Gemini Integration!)
@@ -103,31 +54,11 @@ export default function App() {
   ) => {
     // Intercept habit capturing from floating composer
     if (newItem.type === 'Habit') {
-      const newHabit: Habit = {
-        id: `habit-${Date.now()}`,
-        name: newItem.content,
-        frequency: 'daily',
-        streak: 0,
-        longestStreak: 0,
-        completedDays: [],
-        createdAt: new Date().toISOString(),
-        area: newItem.assignment === 'now' ? newItem.area : undefined,
-        project: newItem.assignment === 'now' ? newItem.project : undefined,
-        subProject: newItem.assignment === 'now' ? newItem.subProject : undefined,
-        notes: ''
-      };
-      saveHabits([newHabit, ...habits]);
+      await addHabit(newItem.content, 'daily', newItem.project, newItem.area, newItem.subProject);
       return;
     }
 
-    const itemID = `item-${Date.now()}`;
-    const createdAt = new Date().toISOString();
-
-    let finalItem: BrainItem = {
-      id: itemID,
-      createdAt,
-      ...newItem
-    };
+    let finalItem = { ...newItem } as any;
 
     if (runAI) {
       try {
@@ -142,21 +73,9 @@ export default function App() {
 
         if (response.ok) {
           const aiData = await response.json();
-          
-          // Enrich with Gemini-derived schema metadata
           finalItem.smartSummary = aiData.smartSummary;
-          
-          // Merge generated tags with user tags
           if (aiData.suggestedTags && Array.isArray(aiData.suggestedTags)) {
-            const uniqueTags = Array.from(new Set([...newItem.tags, ...aiData.suggestedTags]));
-            finalItem.tags = uniqueTags;
-          }
-
-          // Auto-categorize if assigned now
-          if (newItem.assignment === 'now') {
-            if (aiData.suggestedArea) finalItem.area = aiData.suggestedArea;
-            if (aiData.suggestedProject) finalItem.project = aiData.suggestedProject;
-            if (aiData.suggestedSubProject) finalItem.subProject = aiData.suggestedSubProject;
+            finalItem.tags = Array.from(new Set([...newItem.tags, ...aiData.suggestedTags]));
           }
         }
       } catch (err) {
@@ -164,56 +83,30 @@ export default function App() {
       }
     }
 
-    const updated = [finalItem, ...items];
-    saveItems(updated);
+    await createTask(finalItem);
   };
 
   // 2. Complete/Toggle tasks
   const handleToggleComplete = (id: string) => {
-    const updated = items.map(it => {
-      if (it.id === id) {
-        return { ...it, completed: !it.completed };
-      }
-      return it;
-    });
-    saveItems(updated);
+    const item = items.find(it => it.id === id);
+    if (item) {
+      updateTask(id, { completed: !item.completed });
+    }
   };
 
   // 3. Delete brain concepts
   const handleDeleteItem = (id: string) => {
-    const updated = items.filter(it => it.id !== id);
-    saveItems(updated);
+    deleteTask(id);
   };
 
   // 4. File unassigned ideas
   const handleAssignItem = (id: string, area: string, project: string, subProject: string) => {
-    const updated = items.map(it => {
-      if (it.id === id) {
-        // Automatically append the category name as a semantic tag too
-        const uniqueTags = Array.from(new Set([...it.tags, area, project]));
-        return {
-          ...it,
-          assignment: 'now' as const,
-          area,
-          project,
-          subProject,
-          tags: uniqueTags
-        };
-      }
-      return it;
-    });
-    saveItems(updated);
+    assignTask(id, area, project, subProject);
   };
 
   // 5. Schedule date on calendar
   const handleScheduleItem = (id: string, dateStr: string) => {
-    const updated = items.map(it => {
-      if (it.id === id) {
-        return { ...it, scheduledDate: dateStr || undefined };
-      }
-      return it;
-    });
-    saveItems(updated);
+    scheduleItem(id, dateStr);
   };
 
   // 6. Habit operations
@@ -224,107 +117,32 @@ export default function App() {
     area?: string,
     subProject?: string
   ) => {
-    const newHabit: Habit = {
-      id: `habit-${Date.now()}`,
-      name,
-      frequency,
-      streak: 0,
-      longestStreak: 0,
-      completedDays: [],
-      createdAt: new Date().toISOString(),
-      project,
-      area,
-      subProject,
-      notes: ''
-    };
-    saveHabits([newHabit, ...habits]);
+    addHabit(name, frequency, project, area, subProject);
   };
 
   const handleUpdateHabit = (id: string, updates: Partial<Habit>) => {
-    const updated = habits.map(h => {
-      if (h.id === id) {
-        return { ...h, ...updates };
-      }
-      return h;
-    });
-    saveHabits(updated);
+    updateHabit(id, updates);
   };
 
   const handleToggleHabitDay = (id: string, dateStr: string) => {
-    const updated = habits.map(habit => {
-      if (habit.id === id) {
-        let completedDays = [...habit.completedDays];
-        const isAlreadyCompleted = completedDays.includes(dateStr);
-
-        if (isAlreadyCompleted) {
-          completedDays = completedDays.filter(d => d !== dateStr);
-        } else {
-          completedDays.push(dateStr);
-        }
-
-        // Simple dynamic streak computation based on consecutive daily finishes
-        completedDays.sort();
-        let streak = 0;
-        const today = new Date();
-        const datesSet = new Set(completedDays);
-
-        // Check backwards from today or yesterday
-        let checkDate = new Date();
-        // If today is completed or yesterday is completed, continue the streak count
-        if (datesSet.has(checkDate.toISOString().split('T')[0])) {
-          while (datesSet.has(checkDate.toISOString().split('T')[0])) {
-            streak++;
-            checkDate.setDate(checkDate.getDate() - 1);
-          }
-        } else {
-          // If today isn't completed, check if yesterday was to preserve active streak
-          checkDate.setDate(checkDate.getDate() - 1);
-          if (datesSet.has(checkDate.toISOString().split('T')[0])) {
-            while (datesSet.has(checkDate.toISOString().split('T')[0])) {
-              streak++;
-              checkDate.setDate(checkDate.getDate() - 1);
-            }
-          }
-        }
-
-        return {
-          ...habit,
-          completedDays,
-          streak
-        };
-      }
-      return habit;
-    });
-    saveHabits(updated);
+    toggleHabitDay(id, dateStr);
   };
 
   const handleDeleteHabit = (id: string) => {
-    const updated = habits.filter(h => h.id !== id);
-    saveHabits(updated);
+    deleteHabit(id);
   };
 
   // 7. Settings Operations
   const handleResetData = () => {
-    saveItems(DEFAULT_ITEMS);
-    saveHabits(DEFAULT_HABITS);
-    saveHierarchy(DEFAULT_HIERARCHY);
+    resetData('seed');
   };
 
   const handleClearAll = () => {
-    saveItems([]);
-    saveHabits([]);
-    saveHierarchy([]);
+    resetData('clear');
   };
 
   const handleReorderTasks = (orderedIds: string[]) => {
-    const updated = items.map(it => {
-      const idx = orderedIds.indexOf(it.id);
-      if (idx !== -1) {
-        return { ...it, order: idx };
-      }
-      return it;
-    });
-    saveItems(updated);
+    reorderTasks(orderedIds);
   };
 
   // Render view dispatcher
@@ -339,23 +157,10 @@ export default function App() {
           onToggleComplete={handleToggleComplete}
           onDeleteItem={handleDeleteItem}
           onAddTask={(newTask) => {
-            const taskID = `item-${Date.now()}`;
-            const createdAt = new Date().toISOString();
-            const item: BrainItem = {
-              id: taskID,
-              createdAt,
-              ...newTask
-            };
-            saveItems([item, ...items]);
+            createTask(newTask);
           }}
           onUpdateTask={(id, updates) => {
-            const updated = items.map(it => {
-              if (it.id === id) {
-                return { ...it, ...updates };
-              }
-              return it;
-            });
-            saveItems(updated);
+            updateTask(id, updates);
           }}
           onReorderTasks={handleReorderTasks}
         />
@@ -394,7 +199,7 @@ export default function App() {
       case 'Calendar':
         return (
           <CalendarView 
-            items={items}
+            items={calendarItems}
             onScheduleItem={handleScheduleItem}
           />
         );
@@ -415,6 +220,8 @@ export default function App() {
             onClearAll={handleClearAll}
             theme={theme}
             setTheme={setTheme}
+            settings={settings}
+            onUpdateSettings={updateSettings}
           />
         );
       default:
@@ -434,7 +241,7 @@ export default function App() {
         selectedSubProject={selectedSubProject}
         setSelectedSubProject={setSelectedSubProject}
         hierarchy={hierarchy}
-        onUpdateHierarchy={saveHierarchy}
+        onUpdateHierarchy={updateHierarchy}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onOpenChat={() => setChatOpen(true)}
