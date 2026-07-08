@@ -35,6 +35,7 @@ export function useTasks() {
           area: task.area || null,
           project: task.project || null,
           subProject: task.subProject || null,
+          deadline: task.scheduledDate || null,
         }),
       });
       if (res.ok) {

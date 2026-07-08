@@ -69,14 +69,26 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
   };
 
   const handleSelectOption = (value: string) => {
+    let newTags = [...tags];
+    const addTag = (val: string) => {
+      if (val && !newTags.includes(val)) {
+        newTags.push(val);
+      }
+    };
+
     if (activeMenuType === 'Area') {
       setArea(value);
+      addTag(value);
       // Auto-update project and subproject defaults when switching area
       const targetArea = hierarchy.find(a => a.name === value);
       if (targetArea && targetArea.projects.length > 0) {
-        setProject(targetArea.projects[0].name);
+        const nextProj = targetArea.projects[0].name;
+        setProject(nextProj);
+        addTag(nextProj);
         if (targetArea.projects[0].subProjects.length > 0) {
-          setSubProject(targetArea.projects[0].subProjects[0]);
+          const nextSub = targetArea.projects[0].subProjects[0];
+          setSubProject(nextSub);
+          addTag(nextSub);
         } else {
           setSubProject('');
         }
@@ -86,21 +98,22 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
       }
     } else if (activeMenuType === 'Project') {
       setProject(value);
+      addTag(value);
       // Auto-update subproject defaults when switching project
       const targetProj = currentAreaNode?.projects.find(p => p.name === value);
       if (targetProj && targetProj.subProjects.length > 0) {
-        setSubProject(targetProj.subProjects[0]);
+        const nextSub = targetProj.subProjects[0];
+        setSubProject(nextSub);
+        addTag(nextSub);
       } else {
         setSubProject('');
       }
     } else if (activeMenuType === 'SubProject') {
       setSubProject(value);
+      addTag(value);
     }
     
-    // Add selected value as tag too, just like the mockup!
-    if (!tags.includes(value)) {
-      setTags([...tags, value]);
-    }
+    setTags(newTags);
     setActiveMenuType(null);
   };
 
@@ -127,9 +140,11 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
     if (onUpdateHierarchy) {
       await onUpdateHierarchy(updated);
     }
+    const oldArea = area;
     setArea(name);
     setProject('');
     setSubProject('');
+    setTags(prev => [...prev.filter(x => x !== oldArea), name]);
     setNewItemName('');
     setErrorMsg('');
     setActiveMenuType(null);
@@ -156,8 +171,10 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
     if (onUpdateHierarchy) {
       await onUpdateHierarchy(updated);
     }
+    const oldProj = project;
     setProject(name);
     setSubProject('');
+    setTags(prev => [...prev.filter(x => x !== oldProj), name]);
     setNewItemName('');
     setErrorMsg('');
     setActiveMenuType(null);
@@ -193,7 +210,9 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
     if (onUpdateHierarchy) {
       await onUpdateHierarchy(updated);
     }
+    const oldSub = subProject;
     setSubProject(name);
+    setTags(prev => [...prev.filter(x => x !== oldSub), name]);
     setNewItemName('');
     setErrorMsg('');
     setActiveMenuType(null);
@@ -324,7 +343,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                     area ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
                   }`}
                 >
-                  {area || 'Area'}
+                  Area
                 </button>
                 <button 
                   type="button"
@@ -333,7 +352,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                     project ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
                   }`}
                 >
-                  {project || 'Project'}
+                  Project
                 </button>
                 <button 
                   type="button"
@@ -342,7 +361,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                     subProject ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
                   }`}
                 >
-                  {subProject || 'SubProject'}
+                  SubProject
                 </button>
               </div>
             </div>

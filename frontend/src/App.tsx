@@ -36,9 +36,9 @@ export default function App() {
   // Hook integrations
   const { settings, updateSettings, resetData } = useSettings();
   const { hierarchy, updateHierarchy } = useAreas();
-  const { items, createTask, updateTask, deleteTask, assignTask, reorderTasks } = useTasks();
+  const { items, createTask, updateTask, deleteTask, assignTask, reorderTasks, refreshTasks } = useTasks();
   const { habits, addHabit, toggleHabitDay, deleteHabit, updateHabit } = useHabits();
-  const { calendarItems, scheduleItem } = useCalendar();
+  const { calendarItems, scheduleItem, refreshCalendar } = useCalendar();
 
   const [selectedSubProject, setSelectedSubProject] = useState<WorkspaceSelection | null>(null);
 
@@ -84,29 +84,34 @@ export default function App() {
     }
 
     await createTask(finalItem);
+    await refreshCalendar();
   };
 
   // 2. Complete/Toggle tasks
-  const handleToggleComplete = (id: string) => {
+  const handleToggleComplete = async (id: string) => {
     const item = items.find(it => it.id === id);
     if (item) {
-      updateTask(id, { completed: !item.completed });
+      await updateTask(id, { completed: !item.completed });
+      await refreshCalendar();
     }
   };
 
   // 3. Delete brain concepts
-  const handleDeleteItem = (id: string) => {
-    deleteTask(id);
+  const handleDeleteItem = async (id: string) => {
+    await deleteTask(id);
+    await refreshCalendar();
   };
 
   // 4. File unassigned ideas
-  const handleAssignItem = (id: string, area: string, project: string, subProject: string) => {
-    assignTask(id, area, project, subProject);
+  const handleAssignItem = async (id: string, area: string, project: string, subProject: string) => {
+    await assignTask(id, area, project, subProject);
+    await refreshCalendar();
   };
 
   // 5. Schedule date on calendar
-  const handleScheduleItem = (id: string, dateStr: string) => {
-    scheduleItem(id, dateStr);
+  const handleScheduleItem = async (id: string, dateStr: string) => {
+    await scheduleItem(id, dateStr);
+    await refreshTasks();
   };
 
   // 6. Habit operations
@@ -156,11 +161,13 @@ export default function App() {
           items={items}
           onToggleComplete={handleToggleComplete}
           onDeleteItem={handleDeleteItem}
-          onAddTask={(newTask) => {
-            createTask(newTask);
+          onAddTask={async (newTask) => {
+            await createTask(newTask);
+            await refreshCalendar();
           }}
-          onUpdateTask={(id, updates) => {
-            updateTask(id, updates);
+          onUpdateTask={async (id, updates) => {
+            await updateTask(id, updates);
+            await refreshCalendar();
           }}
           onReorderTasks={handleReorderTasks}
         />

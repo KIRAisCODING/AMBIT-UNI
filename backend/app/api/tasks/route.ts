@@ -96,11 +96,12 @@ export async function POST(req: Request) {
       },
     });
 
-    if (item.assigned) {
+    if (item.assigned || body.deadline) {
       await prisma.task.create({
         data: {
           inboxItemId: item.id,
           completed: false,
+          deadline: body.deadline ? new Date(body.deadline) : null,
         },
       });
     }
