@@ -1,0 +1,189 @@
+@import "tailwindcss";
+
+:root {
+  --font-headline: "Hanken Grotesk", "Inter", sans-serif;
+  --font-body: "Inter", sans-serif;
+
+  /* Semantic Theme Tokens - LIGHT MODE */
+  --bg-app: #EFEFEF;
+  --surface: #FFFFFF;
+  --surface-secondary: #F8F8F8;
+  --text-primary: #111111;
+  --text-secondary: #5F5F5F;
+  --text-muted: #8A8A8A;
+  --border: #E6E6E6;
+  --pill: #E3E3E3;
+  --pill-active: #1F1F1F;
+  --pill-active-text: #FFFFFF;
+
+  --accent: #111111;
+  --danger: #DC2626;
+  --success: #16A34A;
+  --warning: #D97706;
+
+  /* Map old system variables for maximum backward compatibility */
+  --surface-dim: #EFEFEF;
+  --surface-bright: #FFFFFF;
+  --surface-container-lowest: #FFFFFF;
+  --surface-container-low: #F8F8F8;
+  --surface-container: #F8F8F8;
+  --surface-container-high: #E6E6E6;
+  --surface-container-highest: #E3E3E3;
+  --on-surface: #111111;
+  --on-surface-variant: #5F5F5F;
+  --inverse-surface: #1F1F1F;
+  --inverse-on-surface: #FFFFFF;
+  --outline: #8A8A8A;
+  --outline-variant: #E6E6E6;
+  --primary: #111111;
+  --on-primary: #FFFFFF;
+  --primary-container: #F8F8F8;
+  --on-primary-container: #5F5F5F;
+  --secondary: #5F5F5F;
+  --on-secondary: #FFFFFF;
+  --secondary-container: #E3E3E3;
+  --on-secondary-container: #111111;
+  --tertiary: #111111;
+  --on-tertiary: #FFFFFF;
+  --tertiary-container: #E3E3E3;
+  --on-tertiary-container: #111111;
+}
+
+.dark {
+  /* Semantic Theme Tokens - DARK MODE */
+  --bg-app: #121212;
+  --surface: #1B1B1B;
+  --surface-secondary: #242424;
+  --text-primary: #F8F8F8;
+  --text-secondary: #B6B6B6;
+  --text-muted: #8C8C8C;
+  --border: #2F2F2F;
+  --pill: #303030;
+  --pill-active: #FFFFFF;
+  --pill-active-text: #000000;
+
+  --accent: #F8F8F8;
+  --danger: #EF4444;
+  --success: #22C55E;
+  --warning: #F59E0B;
+
+  /* Map old system variables for maximum backward compatibility */
+  --surface-dim: #121212;
+  --surface-bright: #1B1B1B;
+  --surface-container-lowest: #1B1B1B;
+  --surface-container-low: #242424;
+  --surface-container: #242424;
+  --surface-container-high: #2F2F2F;
+  --surface-container-highest: #303030;
+  --on-surface: #F8F8F8;
+  --on-surface-variant: #B6B6B6;
+  --inverse-surface: #FFFFFF;
+  --inverse-on-surface: #000000;
+  --outline: #8C8C8C;
+  --outline-variant: #2F2F2F;
+  --primary: #F8F8F8;
+  --on-primary: #000000;
+  --primary-container: #242424;
+  --on-primary-container: #B6B6B6;
+  --secondary: #B6B6B6;
+  --on-secondary: #000000;
+  --secondary-container: #303030;
+  --on-secondary-container: #F8F8F8;
+  --tertiary: #F8F8F8;
+  --on-tertiary: #000000;
+  --tertiary-container: #303030;
+  --on-tertiary-container: #F8F8F8;
+}
+
+@theme {
+  --font-headline: var(--font-headline);
+  --font-body: var(--font-body);
+
+  /* Map semantic color tokens requested by the user */
+  --color-background: var(--bg-app);
+  --color-surface: var(--surface);
+  --color-surfaceSecondary: var(--surface-secondary);
+  --color-border: var(--border);
+  --color-textPrimary: var(--text-primary);
+  --color-textSecondary: var(--text-secondary);
+  --color-textMuted: var(--text-muted);
+  --color-pill: var(--pill);
+  --color-pill-active: var(--pill-active);
+  --color-pill-active-text: var(--pill-active-text);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  /* Keep legacy variable support to prevent compilation failures or UI glitches */
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-bright: var(--surface-bright);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-inverse-surface: var(--inverse-surface);
+  --color-inverse-on-surface: var(--inverse-on-surface);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-secondary: var(--secondary);
+  --color-on-secondary: var(--on-secondary);
+  --color-secondary-container: var(--secondary-container);
+  --color-on-secondary-container: var(--on-secondary-container);
+  --color-tertiary: var(--tertiary);
+  --color-on-tertiary: var(--on-tertiary);
+  --color-tertiary-container: var(--tertiary-container);
+  --color-on-tertiary-container: var(--on-tertiary-container);
+}
+
+@layer utilities {
+  .glass-surface {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  
+  .dark .glass-surface {
+    background: rgba(22, 22, 25, 0.85);
+  }
+
+  .canvas-shadow {
+    box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.04), 0 2px 8px -1px rgba(0, 0, 0, 0.02);
+  }
+  
+  .dark .canvas-shadow {
+    box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.3), 0 2px 8px -1px rgba(0, 0, 0, 0.2);
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+body {
+  background-color: var(--bg-app);
+  color: var(--on-surface);
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+  font-family: var(--font-body);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+}
+
+

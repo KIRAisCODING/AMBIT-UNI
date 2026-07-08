@@ -1,0 +1,9 @@
+export { default as InboxIcon } from "./InboxIcon";
+export { default as FolderIcon } from "./FolderIcon";
+export { default as CalendarIcon } from "./CalendarIcon";
+export { default as HabitIcon } from "./HabitIcon";
+export { default as AnalyticsIcon } from "./AnalyticsIcon";
+export { default as SettingsIcon } from "./SettingsIcon";
+export { default as ChevronIcon } from "./ChevronIcon";
+export { default as ArrowUpIcon } from "./ArrowUpIcon";
+export { default as MoreIcon } from "./MoreIcon";

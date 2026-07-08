@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model InboxItem {
+  id          String   @id @default(uuid())
+
+  content     String
+
+  type        String
+
+  assigned    Boolean  @default(false)
+
+  areaId      String?
+  projectId   String?
+  subProjectId String?
+
+  createdAt   DateTime @default(now())
+
+  task        Task?
+}
+
+model Area {
+  id        String    @id @default(uuid())
+  name      String
+
+  projects  Project[]
+
+  createdAt DateTime @default(now())
+}
+
+model Project {
+  id          String       @id @default(uuid())
+  name        String
+
+  areaId      String
+  area        Area         @relation(fields: [areaId], references: [id])
+
+  subProjects SubProject[]
+
+  createdAt   DateTime @default(now())
+}
+
+model SubProject {
+  id         String    @id @default(uuid())
+  name       String
+
+  projectId  String
+  project    Project   @relation(fields: [projectId], references: [id])
+
+  createdAt  DateTime @default(now())
+}
+
+model Task {
+  id           String   @id @default(uuid())
+
+  inboxItemId  String   @unique
+
+  description  String?
+
+  deadline     DateTime?
+
+  completed    Boolean @default(false)
+
+  inboxItem    InboxItem @relation(fields: [inboxItemId], references: [id])
+}
+
+model Habit {
+  id            String   @id @default(uuid())
+  name          String
+  frequency     String   @default("daily")
+  streak        Int      @default(0)
+  longestStreak Int      @default(0)
+  completedDays String[]
+  createdAt     DateTime @default(now())
+  areaId        String?
+  projectId     String?
+  subProjectId  String?
+  notes         String?
+}
+
+model Settings {
+  id                  String   @id @default("default-settings")
+  userName            String   @default("Senior Product Designer")
+  userEmail           String   @default("architect@ambit.ai")
+  theme               String   @default("light")
+  dailyReviewReminder Boolean  @default(true)
+  streakAlerts        Boolean  @default(true)
+  calendarSync        Boolean  @default(false)
+}
