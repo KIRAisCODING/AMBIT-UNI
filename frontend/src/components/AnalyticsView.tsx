@@ -98,8 +98,19 @@ export default function AnalyticsView({
     return data;
   };
 
+  const getMomentumStatus = (dataArray: { count: number }[]) => {
+    const half = Math.floor(dataArray.length / 2);
+    const firstHalf = dataArray.slice(0, half).reduce((sum, d) => sum + d.count, 0);
+    const secondHalf = dataArray.slice(half).reduce((sum, d) => sum + d.count, 0);
+
+    if (secondHalf > firstHalf + 2) return { text: 'Improving', color: 'text-emerald-500 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20' };
+    if (secondHalf < firstHalf - 2) return { text: 'Slipping', color: 'text-rose-500 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/20' };
+    if (secondHalf > 0 && firstHalf === 0) return { text: 'Recovering', color: 'text-amber-500 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20' };
+    return { text: 'Stable', color: 'text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-800/30' };
+  };
+
   const momentumData = analyticsData?.momentumData || getMomentumData();
-  const trendStatus = analyticsData?.trendStatus || getMomentumStatus();
+  const trendStatus = analyticsData?.trendStatus || getMomentumStatus(momentumData);
 
   // Draw smooth SVG path
   const svgWidth = 500;
