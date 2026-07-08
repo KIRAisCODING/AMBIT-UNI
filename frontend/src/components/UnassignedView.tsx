@@ -29,7 +29,7 @@ export default function UnassignedView({
     setAssigningId(item.id);
     const defaultArea = hierarchy[0]?.name || '';
     const defaultProject = hierarchy[0]?.projects[0]?.name || '';
-    const defaultSubProject = hierarchy[0]?.projects[0]?.subProjects[0]?.name || '';
+    const defaultSubProject = hierarchy[0]?.projects[0]?.subProjects[0] || '';
     setSelectedArea(defaultArea);
     setSelectedProject(defaultProject);
     setSelectedSubProject(defaultSubProject);
@@ -40,7 +40,7 @@ export default function UnassignedView({
     const areaObj = hierarchy.find(a => a.name === areaName);
     const projName = areaObj?.projects[0]?.name || '';
     setSelectedProject(projName);
-    const subProjName = areaObj?.projects[0]?.subProjects[0]?.name || '';
+    const subProjName = areaObj?.projects[0]?.subProjects[0] || '';
     setSelectedSubProject(subProjName);
   };
 
@@ -48,7 +48,7 @@ export default function UnassignedView({
     setSelectedProject(projectName);
     const areaObj = hierarchy.find(a => a.name === selectedArea);
     const projObj = areaObj?.projects.find(p => p.name === projectName);
-    const subProjName = projObj?.subProjects[0]?.name || '';
+    const subProjName = projObj?.subProjects[0] || '';
     setSelectedSubProject(subProjName);
   };
 
@@ -169,7 +169,7 @@ export default function UnassignedView({
                         {availableSubProjects.length === 0 ? (
                           <option value="">No Subprojects</option>
                         ) : (
-                          availableSubProjects.map(sp => <option key={sp.name} value={sp.name}>{sp.name}</option>)
+                          availableSubProjects.map(sp => <option key={sp} value={sp}>{sp}</option>)
                         )}
                       </select>
 
