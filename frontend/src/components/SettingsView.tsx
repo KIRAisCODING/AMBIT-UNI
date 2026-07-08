@@ -9,21 +9,42 @@ interface SettingsViewProps {
   onClearAll: () => void;
   theme: 'light' | 'dark';
   setTheme: (t: 'light' | 'dark') => void;
+  settings?: {
+    userName: string;
+    userEmail: string;
+    dailyReviewReminder: boolean;
+    streakAlerts: boolean;
+    calendarSync: boolean;
+  };
+  onUpdateSettings?: (updates: any) => void;
 }
 
 export default function SettingsView({ 
   onResetData, 
   onClearAll,
   theme,
-  setTheme
+  setTheme,
+  settings,
+  onUpdateSettings
 }: SettingsViewProps) {
   // Mock Settings States
-  const [dailyReviewReminder, setDailyReviewReminder] = useState(true);
-  const [streakAlerts, setStreakAlerts] = useState(true);
-  const [calendarSync, setCalendarSync] = useState(false);
-  const [userName, setUserName] = useState('Senior Product Designer');
-  const [userEmail, setUserEmail] = useState('architect@ambit.ai');
+  const [dailyReviewReminder, setDailyReviewReminder] = useState(settings?.dailyReviewReminder ?? true);
+  const [streakAlerts, setStreakAlerts] = useState(settings?.streakAlerts ?? true);
+  const [calendarSync, setCalendarSync] = useState(settings?.calendarSync ?? false);
+  const [userName, setUserName] = useState(settings?.userName ?? 'Senior Product Designer');
+  const [userEmail, setUserEmail] = useState(settings?.userEmail ?? 'architect@ambit.ai');
   const [autoArchive, setAutoArchive] = useState(true);
+
+  // Sync state with settings when loaded asynchronously
+  React.useEffect(() => {
+    if (settings) {
+      setDailyReviewReminder(settings.dailyReviewReminder);
+      setStreakAlerts(settings.streakAlerts);
+      setCalendarSync(settings.calendarSync);
+      setUserName(settings.userName);
+      setUserEmail(settings.userEmail);
+    }
+  }, [settings]);
 
   // Keyboard Shortcuts List
   const shortcuts = [
@@ -140,7 +161,10 @@ export default function SettingsView({
                 <input
                   type="checkbox"
                   checked={dailyReviewReminder}
-                  onChange={(e) => setDailyReviewReminder(e.target.checked)}
+                  onChange={(e) => {
+                    setDailyReviewReminder(e.target.checked);
+                    onUpdateSettings?.({ dailyReviewReminder: e.target.checked });
+                  }}
                   className="rounded border-border text-textPrimary focus:ring-accent w-4 h-4 mt-0.5 cursor-pointer"
                 />
               </div>
@@ -155,7 +179,10 @@ export default function SettingsView({
                 <input
                   type="checkbox"
                   checked={streakAlerts}
-                  onChange={(e) => setStreakAlerts(e.target.checked)}
+                  onChange={(e) => {
+                    setStreakAlerts(e.target.checked);
+                    onUpdateSettings?.({ streakAlerts: e.target.checked });
+                  }}
                   className="rounded border-border text-textPrimary focus:ring-accent w-4 h-4 mt-0.5 cursor-pointer"
                 />
               </div>
@@ -170,7 +197,10 @@ export default function SettingsView({
                 <input
                   type="checkbox"
                   checked={calendarSync}
-                  onChange={(e) => setCalendarSync(e.target.checked)}
+                  onChange={(e) => {
+                    setCalendarSync(e.target.checked);
+                    onUpdateSettings?.({ calendarSync: e.target.checked });
+                  }}
                   className="rounded border-border text-textPrimary focus:ring-accent w-4 h-4 mt-0.5 cursor-pointer"
                 />
               </div>
@@ -245,13 +275,14 @@ export default function SettingsView({
             <div className="space-y-4 pt-1">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-pill-active text-pill-active-text flex items-center justify-center font-bold text-sm">
-                  SP
+                  {userName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'SP'}
                 </div>
                 <div>
                   <input
                     type="text"
                     value={userName}
                     onChange={(e) => setUserName(e.target.value)}
+                    onBlur={() => onUpdateSettings?.({ userName })}
                     className="bg-transparent border-none focus:ring-0 p-0 text-sm font-bold text-textPrimary outline-none w-full"
                     title="Edit profile name"
                   />
@@ -259,6 +290,7 @@ export default function SettingsView({
                     type="email"
                     value={userEmail}
                     onChange={(e) => setUserEmail(e.target.value)}
+                    onBlur={() => onUpdateSettings?.({ userEmail })}
                     className="bg-transparent border-none focus:ring-0 p-0 text-xs text-textSecondary outline-none w-full"
                     title="Edit profile email"
                   />
