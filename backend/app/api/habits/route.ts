@@ -11,11 +11,11 @@ export async function GET() {
     const projects = await prisma.project.findMany();
     const subProjects = await prisma.subProject.findMany();
 
-    const areaMap = new Map(areas.map((a) => [a.id, a.name]));
-    const projectMap = new Map(projects.map((p) => [p.id, p.name]));
-    const subProjectMap = new Map(subProjects.map((sp) => [sp.id, sp.name]));
+    const areaMap = new Map(areas.map((a: any) => [a.id, a.name]));
+    const projectMap = new Map(projects.map((p: any) => [p.id, p.name]));
+    const subProjectMap = new Map(subProjects.map((sp: any) => [sp.id, sp.name]));
 
-    const mappedHabits = habits.map((habit) => ({
+    const mappedHabits = habits.map((habit: any) => ({
       ...habit,
       area: habit.areaId ? areaMap.get(habit.areaId) : null,
       project: habit.projectId ? projectMap.get(habit.projectId) : null,

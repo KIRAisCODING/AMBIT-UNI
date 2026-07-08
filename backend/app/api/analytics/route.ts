@@ -15,12 +15,12 @@ export async function GET(req: Request) {
       include: { projects: { include: { subProjects: true } } }
     });
 
-    const areaMap = new Map(areas.map((a) => [a.id, a.name]));
+    const areaMap = new Map(areas.map((a: any) => [a.id, a.name]));
     const projectMap = new Map(
-      areas.flatMap((a) => a.projects).map((p) => [p.id, p.name])
+      areas.flatMap((a: any) => a.projects).map((p: any) => [p.id, p.name])
     );
 
-    const resolvedItems = items.map((item) => ({
+    const resolvedItems = items.map((item: any) => ({
       ...item,
       area: item.areaId ? areaMap.get(item.areaId) : null,
       project: item.projectId ? projectMap.get(item.projectId) : null,
@@ -37,9 +37,9 @@ export async function GET(req: Request) {
     };
 
     for (const area of defaultAreas) {
-      const areaTasks = resolvedItems.filter((it) => it.area === area && it.type === "Task");
+      const areaTasks = resolvedItems.filter((it: any) => it.area === area && it.type === "Task");
       if (areaTasks.length > 0) {
-        const completed = areaTasks.filter((it) => it.task?.completed).length;
+        const completed = areaTasks.filter((it: any) => it.task?.completed).length;
         areaProgress[area] = Math.round((completed / areaTasks.length) * 100);
       } else {
         areaProgress[area] = fallbackMap[area] || 40;
@@ -57,7 +57,7 @@ export async function GET(req: Request) {
       const dStr = d.toISOString().split("T")[0];
 
       const actualCount = resolvedItems.filter(
-        (it) =>
+        (it: any) =>
           it.type === "Task" &&
           it.task?.completed &&
           (it.task?.deadline?.toISOString().startsWith(dStr) ||
@@ -101,17 +101,17 @@ export async function GET(req: Request) {
     }
 
     // 5. Unassigned thoughts
-    const unassignedCount = resolvedItems.filter((it) => !it.assigned || !it.area).length;
+    const unassignedCount = resolvedItems.filter((it: any) => !it.assigned || !it.area).length;
 
     // 6. This week metrics
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(today.getDate() - 7);
 
     const completedThisWeek = resolvedItems.filter(
-      (it) => it.type === "Task" && it.task?.completed && it.createdAt >= oneWeekAgo
+      (it: any) => it.type === "Task" && it.task?.completed && it.createdAt >= oneWeekAgo
     ).length;
 
-    const createdThisWeek = resolvedItems.filter((it) => it.createdAt >= oneWeekAgo).length;
+    const createdThisWeek = resolvedItems.filter((it: any) => it.createdAt >= oneWeekAgo).length;
 
     // Habit completion rate this week
     let totalScheduledHabits = 0;
@@ -126,10 +126,10 @@ export async function GET(req: Request) {
     for (const habit of habits) {
       if (habit.frequency === "daily") {
         totalScheduledHabits += 7;
-        completedHabitsCount += habit.completedDays.filter((d) => datesThisWeek.includes(d)).length;
+        completedHabitsCount += habit.completedDays.filter((d: any) => datesThisWeek.includes(d)).length;
       } else {
         totalScheduledHabits += 1;
-        const completedCount = habit.completedDays.filter((d) => datesThisWeek.includes(d)).length;
+        const completedCount = habit.completedDays.filter((d: any) => datesThisWeek.includes(d)).length;
         if (completedCount > 0) completedHabitsCount += 1;
       }
     }
@@ -141,9 +141,9 @@ export async function GET(req: Request) {
     for (const area of areas) {
       for (const proj of area.projects) {
         const projTasks = resolvedItems.filter(
-          (it) => it.projectId === proj.id && it.type === "Task"
+          (it: any) => it.projectId === proj.id && it.type === "Task"
         );
-        const completed = projTasks.filter((it) => it.task?.completed).length;
+        const completed = projTasks.filter((it: any) => it.task?.completed).length;
         const pct = projTasks.length > 0 ? Math.round((completed / projTasks.length) * 100) : 0;
         projectsList.push({
           name: proj.name,
@@ -163,7 +163,7 @@ export async function GET(req: Request) {
         completedThisWeek,
         createdThisWeek,
         habitCompletionRate,
-        activeProjectsCount: areas.flatMap((a) => a.projects).length,
+        activeProjectsCount: areas.flatMap((a: any) => a.projects).length,
       },
       activeProjects: projectsList,
     });

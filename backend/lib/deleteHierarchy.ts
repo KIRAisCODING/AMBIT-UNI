@@ -12,7 +12,7 @@ export async function deleteArea(id: string, mode: DeleteMode = "delete") {
     },
   });
 
-  const projectIds = projects.map((project) => project.id);
+  const projectIds = projects.map((project: any) => project.id);
 
   const subProjects = await prisma.subProject.findMany({
     where: {
@@ -25,7 +25,7 @@ export async function deleteArea(id: string, mode: DeleteMode = "delete") {
     },
   });
 
-  const subProjectIds = subProjects.map((subProject) => subProject.id);
+  const subProjectIds = subProjects.map((subProject: any) => subProject.id);
 
   const inboxItems = await prisma.inboxItem.findMany({
     where: {
@@ -36,7 +36,7 @@ export async function deleteArea(id: string, mode: DeleteMode = "delete") {
     },
   });
 
-  const inboxItemIds = inboxItems.map((item) => item.id);
+  const inboxItemIds = inboxItems.map((item: any) => item.id);
 
   if (mode === "delete") {
     await prisma.$transaction([
@@ -121,7 +121,7 @@ export async function deleteProject(id: string, mode: DeleteMode = "delete") {
     },
   });
 
-  const subProjectIds = subProjects.map((subProject) => subProject.id);
+  const subProjectIds = subProjects.map((subProject: any) => subProject.id);
 
   const inboxItems = await prisma.inboxItem.findMany({
     where: {
@@ -132,7 +132,7 @@ export async function deleteProject(id: string, mode: DeleteMode = "delete") {
     },
   });
 
-  const inboxItemIds = inboxItems.map((item) => item.id);
+  const inboxItemIds = inboxItems.map((item: any) => item.id);
 
   if (mode === "delete") {
     await prisma.$transaction([
@@ -203,7 +203,7 @@ export async function deleteSubProject(id: string, mode: DeleteMode = "delete") 
     },
   });
 
-  const inboxItemIds = inboxItems.map((item) => item.id);
+  const inboxItemIds = inboxItems.map((item: any) => item.id);
 
   if (mode === "delete") {
     await prisma.$transaction([
