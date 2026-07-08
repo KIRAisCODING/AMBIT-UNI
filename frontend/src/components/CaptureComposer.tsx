@@ -8,11 +8,12 @@ interface CaptureComposerProps {
   onCapture: (newItem: Omit<BrainItem, 'id' | 'createdAt'>, runAI: boolean) => Promise<void>;
   hierarchy: AreaHierarchy[];
   activeTab?: string;
+  onUpdateHierarchy?: (newHierarchy: AreaHierarchy[]) => void;
 }
 
-export default function CaptureComposer({ onCapture, hierarchy, activeTab }: CaptureComposerProps) {
+export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpdateHierarchy }: CaptureComposerProps) {
   const [content, setContent] = useState('');
-  const [assignment, setAssignment] = useState<'now' | 'later'>('now');
+  const [assignment, setAssignment] = useState<'now' | 'later'>('later');
   const [type, setType] = useState<ItemType>('Task');
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
 
@@ -25,13 +26,14 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab }: Cap
   }, [activeTab]);
 
   // Categorization state
-  // Categorization state
   const [area, setArea] = useState('');
   const [project, setProject] = useState('');
   const [subProject, setSubProject] = useState('');
 
   // Modal selector state
   const [activeMenuType, setActiveMenuType] = useState<'Area' | 'Project' | 'SubProject' | null>(null);
+  const [newItemName, setNewItemName] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   // Tags state
   const [tags, setTags] = useState<string[]>([]);
@@ -113,6 +115,90 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab }: Cap
     }
   };
 
+  const handleCreateAreaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newItemName.trim()) return;
+    const name = newItemName.trim();
+    if (hierarchy.some(a => a.name.toLowerCase() === name.toLowerCase())) {
+      setErrorMsg('Area already exists.');
+      return;
+    }
+    const updated = [...hierarchy, { name, projects: [] }];
+    if (onUpdateHierarchy) {
+      await onUpdateHierarchy(updated);
+    }
+    setArea(name);
+    setProject('');
+    setSubProject('');
+    setNewItemName('');
+    setErrorMsg('');
+    setActiveMenuType(null);
+  };
+
+  const handleCreateProjectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newItemName.trim()) return;
+    const name = newItemName.trim();
+    const currentArea = hierarchy.find(a => a.name === area);
+    if (currentArea?.projects.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+      setErrorMsg('Project already exists.');
+      return;
+    }
+    const updated = hierarchy.map(a => {
+      if (a.name === area) {
+        return {
+          ...a,
+          projects: [...a.projects, { name, subProjects: [] }]
+        };
+      }
+      return a;
+    });
+    if (onUpdateHierarchy) {
+      await onUpdateHierarchy(updated);
+    }
+    setProject(name);
+    setSubProject('');
+    setNewItemName('');
+    setErrorMsg('');
+    setActiveMenuType(null);
+  };
+
+  const handleCreateSubProjectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newItemName.trim()) return;
+    const name = newItemName.trim();
+    const currentArea = hierarchy.find(a => a.name === area);
+    const currentProj = currentArea?.projects.find(p => p.name === project);
+    if (currentProj?.subProjects.some(sp => sp.toLowerCase() === name.toLowerCase())) {
+      setErrorMsg('Subproject already exists.');
+      return;
+    }
+    const updated = hierarchy.map(a => {
+      if (a.name === area) {
+        return {
+          ...a,
+          projects: a.projects.map(p => {
+            if (p.name === project) {
+              return {
+                ...p,
+                subProjects: [...p.subProjects, name]
+              };
+            }
+            return p;
+          })
+        };
+      }
+      return a;
+    });
+    if (onUpdateHierarchy) {
+      await onUpdateHierarchy(updated);
+    }
+    setSubProject(name);
+    setNewItemName('');
+    setErrorMsg('');
+    setActiveMenuType(null);
+  };
+
   const handleRemoveTag = (tagToRemove: string) => {
     setTags(tags.filter(t => t !== tagToRemove));
   };
@@ -120,6 +206,11 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab }: Cap
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!content.trim()) return;
+
+    if (assignment === 'now' && (!area || !project || !subProject)) {
+      alert("Please select or create Area, Project, and SubProject to assign now.");
+      return;
+    }
 
     setIsAnalyzing(true);
     try {
@@ -136,8 +227,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab }: Cap
 
       // Reset
       setContent('');
-      // Keep selected category defaults but clear user tags to prevent cluttering next entries
-      setTags(['Hackathon', 'SIH']);
+      setTags([]);
     } catch (err) {
       console.error("Submit Capture Error:", err);
     } finally {
@@ -230,23 +320,29 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab }: Cap
                 <button 
                   type="button"
                   onClick={() => handleOpenMenu('Area')}
-                  className="px-3.5 py-1 text-xs font-semibold bg-pill-active text-pill-active-text rounded-full hover:opacity-90 transition-all"
+                  className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer ${
+                    area ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
+                  }`}
                 >
-                  {area}
+                  {area || 'Area'}
                 </button>
                 <button 
                   type="button"
                   onClick={() => handleOpenMenu('Project')}
-                  className="px-3.5 py-1 text-xs font-semibold text-textSecondary hover:text-textPrimary transition-colors rounded-full cursor-pointer"
+                  className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer ${
+                    project ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
+                  }`}
                 >
-                  {project}
+                  {project || 'Project'}
                 </button>
                 <button 
                   type="button"
                   onClick={() => handleOpenMenu('SubProject')}
-                  className="px-3.5 py-1 text-xs font-semibold text-textSecondary hover:text-textPrimary transition-colors rounded-full cursor-pointer"
+                  className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer ${
+                    subProject ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
+                  }`}
                 >
-                  {subProject}
+                  {subProject || 'SubProject'}
                 </button>
               </div>
             </div>
@@ -335,7 +431,11 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab }: Cap
           {/* Overlay */}
           <div 
             className="absolute inset-0 bg-black/40 backdrop-blur-sm" 
-            onClick={() => setActiveMenuType(null)}
+            onClick={() => {
+              setActiveMenuType(null);
+              setNewItemName('');
+              setErrorMsg('');
+            }}
           />
           {/* Modal Card */}
           <div className="relative bg-surface w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-border animate-scale-in">
@@ -345,27 +445,137 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab }: Cap
               </h3>
               <button 
                 type="button"
-                onClick={() => setActiveMenuType(null)}
+                onClick={() => {
+                  setActiveMenuType(null);
+                  setNewItemName('');
+                  setErrorMsg('');
+                }}
                 className="p-1 hover:bg-surfaceSecondary rounded-full transition-colors cursor-pointer text-textSecondary"
               >
                 <X size={16} />
               </button>
             </div>
+
             <div className="space-y-1 max-h-[40vh] overflow-y-auto hide-scrollbar">
-              {(activeMenuType === 'Area' ? areasList : activeMenuType === 'Project' ? projectsList : subProjectsList).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => handleSelectOption(option)}
-                  className="w-full text-left px-4 py-3 hover:bg-surfaceSecondary rounded-xl text-sm font-medium text-textPrimary transition-colors cursor-pointer"
-                >
-                  {option}
-                </button>
-              ))}
-              {(activeMenuType === 'Area' ? areasList : activeMenuType === 'Project' ? projectsList : subProjectsList).length === 0 && (
-                <div className="text-xs text-textSecondary/60 text-center py-6 font-medium">
-                  No folders available. Create some in the Sidebar first!
-                </div>
+              {activeMenuType === 'Area' && (
+                <>
+                  {areasList.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => handleSelectOption(option)}
+                      className="w-full text-left px-4 py-3 hover:bg-surfaceSecondary rounded-xl text-sm font-medium text-textPrimary transition-colors cursor-pointer"
+                    >
+                      {option}
+                    </button>
+                  ))}
+                  {areasList.length === 0 && (
+                    <div className="text-xs text-textSecondary/60 text-center py-6 font-medium">
+                      No Areas yet.
+                    </div>
+                  )}
+                  <form onSubmit={handleCreateAreaSubmit} className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="New Area Name..." 
+                        value={newItemName}
+                        onChange={(e) => setNewItemName(e.target.value)}
+                        className="flex-1 bg-surfaceSecondary border border-border text-xs px-3 py-2 rounded-xl outline-none text-textPrimary focus:ring-1 focus:ring-accent"
+                      />
+                      <button type="submit" className="bg-pill-active text-pill-active-text px-3 py-2 rounded-xl text-xs font-semibold hover:opacity-90 cursor-pointer">
+                        + Create
+                      </button>
+                    </div>
+                    {errorMsg && <p className="text-[10px] text-red-500 font-medium px-1">{errorMsg}</p>}
+                  </form>
+                </>
+              )}
+
+              {activeMenuType === 'Project' && (
+                <>
+                  {!area ? (
+                    <div className="text-xs text-textSecondary/60 text-center py-6 font-medium">
+                      Select an Area first.
+                    </div>
+                  ) : (
+                    <>
+                      {projectsList.map((option) => (
+                        <button
+                          key={option}
+                          type="button;;"
+                          onClick={() => handleSelectOption(option)}
+                          className="w-full text-left px-4 py-3 hover:bg-surfaceSecondary rounded-xl text-sm font-medium text-textPrimary transition-colors cursor-pointer"
+                        >
+                          {option}
+                        </button>
+                      ))}
+                      {projectsList.length === 0 && (
+                        <div className="text-xs text-textSecondary/60 text-center py-6 font-medium">
+                          No Projects yet.
+                        </div>
+                      )}
+                      <form onSubmit={handleCreateProjectSubmit} className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="New Project Name..." 
+                            value={newItemName}
+                            onChange={(e) => setNewItemName(e.target.value)}
+                            className="flex-1 bg-surfaceSecondary border border-border text-xs px-3 py-2 rounded-xl outline-none text-textPrimary focus:ring-1 focus:ring-accent"
+                          />
+                          <button type="submit" className="bg-pill-active text-pill-active-text px-3 py-2 rounded-xl text-xs font-semibold hover:opacity-90 cursor-pointer">
+                            + Create
+                          </button>
+                        </div>
+                        {errorMsg && <p className="text-[10px] text-red-500 font-medium px-1">{errorMsg}</p>}
+                      </form>
+                    </>
+                  )}
+                </>
+              )}
+
+              {activeMenuType === 'SubProject' && (
+                <>
+                  {!project ? (
+                    <div className="text-xs text-textSecondary/60 text-center py-6 font-medium">
+                      Select a Project first.
+                    </div>
+                  ) : (
+                    <>
+                      {subProjectsList.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => handleSelectOption(option)}
+                          className="w-full text-left px-4 py-3 hover:bg-surfaceSecondary rounded-xl text-sm font-medium text-textPrimary transition-colors cursor-pointer"
+                        >
+                          {option}
+                        </button>
+                      ))}
+                      {subProjectsList.length === 0 && (
+                        <div className="text-xs text-textSecondary/60 text-center py-6 font-medium">
+                          No Subprojects yet.
+                        </div>
+                      )}
+                      <form onSubmit={handleCreateSubProjectSubmit} className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="New Subproject Name..." 
+                            value={newItemName}
+                            onChange={(e) => setNewItemName(e.target.value)}
+                            className="flex-1 bg-surfaceSecondary border border-border text-xs px-3 py-2 rounded-xl outline-none text-textPrimary focus:ring-1 focus:ring-accent"
+                          />
+                          <button type="submit" className="bg-pill-active text-pill-active-text px-3 py-2 rounded-xl text-xs font-semibold hover:opacity-90 cursor-pointer">
+                            + Create
+                          </button>
+                        </div>
+                        {errorMsg && <p className="text-[10px] text-red-500 font-medium px-1">{errorMsg}</p>}
+                      </form>
+                    </>
+                  )}
+                </>
               )}
             </div>
           </div>

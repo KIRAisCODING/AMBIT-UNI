@@ -271,7 +271,12 @@ export default function App() {
 
         {/* Floating Capture composer (Displayed on Inbox and Habits) */}
         {showCaptureComposer && (
-          <CaptureComposer onCapture={handleCaptureItem} hierarchy={hierarchy} activeTab={activeTab} />
+          <CaptureComposer 
+            onCapture={handleCaptureItem} 
+            hierarchy={hierarchy} 
+            activeTab={activeTab} 
+            onUpdateHierarchy={updateHierarchy} 
+          />
         )}
       </div>
 
