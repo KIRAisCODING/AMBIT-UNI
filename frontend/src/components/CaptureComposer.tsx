@@ -261,11 +261,11 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
         <div className="flex flex-wrap items-center justify-between gap-2 px-1">
           <div className="flex items-center gap-2 flex-wrap">
             {/* Assign Now vs Later Toggle */}
-            <div className="flex bg-pill/90 backdrop-blur-sm rounded-full p-0.5 shadow-sm border border-border">
+            <div className="flex bg-pill/90 backdrop-blur-sm rounded-full p-0.5 shadow-sm border border-border h-[35px] items-center">
               <button 
                 type="button"
                 onClick={() => setAssignment('now')}
-                className={`px-3.5 py-1 text-xs font-semibold rounded-full transition-all duration-200 cursor-pointer ${
+                className={`px-3.5 py-1 text-xs font-semibold rounded-full transition-all duration-200 cursor-pointer h-[31px] flex items-center justify-center ${
                   assignment === 'now' 
                     ? 'bg-pill-active text-pill-active-text shadow-sm' 
                     : 'text-textSecondary hover:text-textPrimary'
@@ -276,7 +276,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
               <button 
                 type="button"
                 onClick={() => setAssignment('later')}
-                className={`px-3.5 py-1 text-xs font-semibold rounded-full transition-all duration-200 cursor-pointer ${
+                className={`px-3.5 py-1 text-xs font-semibold rounded-full transition-all duration-200 cursor-pointer h-[31px] flex items-center justify-center ${
                   assignment === 'later' 
                     ? 'bg-pill-active text-pill-active-text shadow-sm' 
                     : 'text-textSecondary hover:text-textPrimary'
@@ -291,10 +291,10 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
               <button 
                 type="button"
                 onClick={() => setShowTypeDropdown(!showTypeDropdown)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-pill/90 backdrop-blur-sm rounded-full text-xs font-semibold text-textSecondary hover:bg-pill transition-colors shadow-sm cursor-pointer"
+                className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-pill/90 backdrop-blur-sm rounded-full text-xs font-semibold text-textSecondary hover:bg-pill transition-colors shadow-sm cursor-pointer h-[31px]"
               >
                 <span>{type}</span>
-                <ChevronDown size={14} className="text-textSecondary" />
+                <ChevronDown size={20} className="text-textSecondary" />
               </button>
               
               {showTypeDropdown && (
@@ -320,14 +320,14 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
             <button
               type="button"
               onClick={() => setAiEnabled(!aiEnabled)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors shadow-sm cursor-pointer ${
+              className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors shadow-sm cursor-pointer h-[31px] ${
                 aiEnabled 
                   ? 'bg-pill-active text-pill-active-text hover:opacity-90' 
                   : 'bg-pill text-textSecondary hover:opacity-90'
               }`}
               title="Toggle Gemini Auto-Tag & Auto-Categorization"
             >
-              <Sparkles size={12} className={aiEnabled ? 'text-yellow-400' : 'text-textSecondary'} />
+              <Sparkles size={20} className={aiEnabled ? 'text-yellow-400' : 'text-textSecondary'} />
               <span>AI {aiEnabled ? 'Active' : 'Off'}</span>
             </button>
           </div>
@@ -335,11 +335,11 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
           {/* Hierarchical Context Selection (Only visible when 'Assign now' is active) */}
           {assignment === 'now' && (
             <div className="flex gap-1.5 overflow-x-auto hide-scrollbar">
-              <div className="flex bg-pill/90 backdrop-blur-sm rounded-full p-0.5 shadow-sm border border-border">
+              <div className="flex bg-pill/90 backdrop-blur-sm rounded-full p-0.5 shadow-sm border border-border h-[35px] items-center">
                 <button 
                   type="button"
                   onClick={() => handleOpenMenu('Area')}
-                  className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer ${
+                  className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer h-[31px] flex items-center justify-center ${
                     area ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
                   }`}
                 >
@@ -348,7 +348,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                 <button 
                   type="button"
                   onClick={() => handleOpenMenu('Project')}
-                  className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer ${
+                  className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer h-[31px] flex items-center justify-center ${
                     project ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
                   }`}
                 >
@@ -357,7 +357,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                 <button 
                   type="button"
                   onClick={() => handleOpenMenu('SubProject')}
-                  className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer ${
+                  className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer h-[31px] flex items-center justify-center ${
                     subProject ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
                   }`}
                 >
@@ -410,7 +410,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                     onClick={() => handleRemoveTag(tag)}
                     className="hover:bg-red-100 dark:hover:bg-red-950/20 rounded-full p-0.5 cursor-pointer"
                   >
-                    <X size={10} className="text-textSecondary" />
+                    <X size={20} className="text-textSecondary" />
                   </button>
                 </div>
               ))}
@@ -435,9 +435,9 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
               }`}
             >
               {isAnalyzing ? (
-                <Sparkles size={18} className="animate-pulse text-yellow-400" />
+                <Sparkles size={20} className="animate-pulse text-yellow-400" />
               ) : (
-                <ArrowUp size={18} />
+                <ArrowUp size={20} />
               )}
             </button>
           </div>

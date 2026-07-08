@@ -196,7 +196,7 @@ export default function WorkspaceView({
           onClick={() => setShowNewForm(!showNewForm)}
           className="flex items-center gap-1.5 bg-pill-active text-pill-active-text hover:opacity-90 px-4.5 py-2 rounded-full text-xs font-semibold shadow-md transition-all self-start sm:self-center cursor-pointer"
         >
-          <Plus size={14} />
+          <Plus size={20} />
           <span>Add Task</span>
         </button>
       </div>
@@ -209,7 +209,7 @@ export default function WorkspaceView({
         >
           <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
             <h3 className="text-sm font-bold text-textPrimary flex items-center gap-1.5">
-              <CheckCircle2 size={16} />
+              <CheckCircle2 size={20} />
               <span>Create Task in {subProject}</span>
             </h3>
             <button
@@ -326,7 +326,7 @@ export default function WorkspaceView({
       {subProjectItems.length === 0 ? (
         <div className="bg-surface border border-border rounded-[28px] canvas-shadow p-12 text-center flex flex-col items-center justify-center min-h-[45vh]">
           <div className="mb-4 inline-flex p-4 rounded-full bg-surfaceSecondary text-textSecondary">
-            <Check size={28} />
+            <Check size={20} />
           </div>
           <h3 className="text-lg font-headline font-semibold text-textPrimary mb-1">
             Task Queue Clear!
@@ -367,7 +367,7 @@ export default function WorkspaceView({
                       className="mt-1.5 text-textSecondary/30 group-hover:text-textSecondary/70 transition-colors cursor-grab active:cursor-grabbing shrink-0"
                       title="Drag to reorder"
                     >
-                      <GripVertical size={14} />
+                      <GripVertical size={20} />
                     </div>
 
                     {/* Completion checkbox circular toggle */}
@@ -379,9 +379,9 @@ export default function WorkspaceView({
                       className="mt-1 flex-shrink-0 text-textSecondary hover:text-textPrimary transition-colors cursor-pointer"
                     >
                       {item.completed ? (
-                        <CheckCircle2 size={18} className="text-textPrimary" />
+                        <CheckCircle2 size={20} className="text-textPrimary" />
                       ) : (
-                        <Circle size={18} />
+                        <Circle size={20} />
                       )}
                     </button>
 
@@ -400,7 +400,7 @@ export default function WorkspaceView({
                         {/* Smart Summary Badge */}
                         {item.smartSummary && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold text-yellow-700 dark:text-yellow-200 bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-900/40">
-                            <Sparkles size={8} />
+                            <Sparkles size={20} />
                             <span>AI Analyzed</span>
                           </span>
                         )}
@@ -408,7 +408,7 @@ export default function WorkspaceView({
                         {/* Deadline */}
                         {item.scheduledDate && (
                           <span className="inline-flex items-center gap-1 text-[10px] text-textSecondary font-mono font-medium">
-                            <Calendar size={11} />
+                            <Calendar size={20} />
                             <span>{new Date(item.scheduledDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                           </span>
                         )}
@@ -437,14 +437,14 @@ export default function WorkspaceView({
                       className="p-1.5 hover:bg-pill rounded-full text-textSecondary hover:text-textPrimary transition-colors cursor-pointer"
                       title={isExpanded ? "Collapse inline view" : "Expand inline view"}
                     >
-                      <Eye size={14} />
+                      <Eye size={20} />
                     </button>
                     <button
                       onClick={() => onDeleteItem(item.id)}
                       className="p-1.5 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 text-textSecondary rounded-full transition-colors cursor-pointer"
                       title="Delete task"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={20} />
                     </button>
                   </div>
                 </div>
@@ -536,7 +536,7 @@ export default function WorkspaceView({
                         {item.smartSummary && (
                           <div className="bg-yellow-50/40 dark:bg-yellow-950/10 p-3.5 rounded-xl border border-yellow-100 dark:border-yellow-900/25">
                             <div className="flex items-center gap-1.5 text-[10px] font-bold text-yellow-700 dark:text-yellow-400 uppercase tracking-wider mb-1">
-                              <Sparkles size={11} />
+                              <Sparkles size={20} />
                               <span>Gemini Smart Synthesizer</span>
                             </div>
                             <p className="text-xs text-textPrimary leading-relaxed font-semibold">{item.smartSummary}</p>
@@ -566,7 +566,7 @@ export default function WorkspaceView({
                         {/* Associated Tags */}
                         {item.tags.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 items-center">
-                            <Tag size={10} className="text-textSecondary" />
+                            <Tag size={20} className="text-textSecondary" />
                             {item.tags.map(t => (
                               <span key={t} className="text-[10px] text-textSecondary bg-pill px-2 py-0.5 rounded">
                                 #{t}
@@ -581,7 +581,7 @@ export default function WorkspaceView({
                             onClick={() => startEditing(item)}
                             className="flex items-center gap-1.5 text-xs text-textSecondary hover:text-textPrimary font-semibold transition-colors cursor-pointer"
                           >
-                            <Edit2 size={11} />
+                            <Edit2 size={20} />
                             <span>Edit Scope Details</span>
                           </button>
 
@@ -589,7 +589,7 @@ export default function WorkspaceView({
                             onClick={() => onDeleteItem(item.id)}
                             className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 font-semibold transition-colors cursor-pointer"
                           >
-                            <Trash2 size={11} />
+                            <Trash2 size={20} />
                             <span>Erase Task</span>
                           </button>
                         </div>

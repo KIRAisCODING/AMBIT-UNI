@@ -51,7 +51,7 @@ export default function InboxView({
             <button
               key={type}
               onClick={() => setFilterType(type)}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 shrink-0 cursor-pointer ${
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 shrink-0 cursor-pointer h-[31px] flex items-center justify-center ${
                 filterType === type
                   ? 'bg-pill-active text-pill-active-text shadow-sm'
                   : 'bg-pill text-textSecondary hover:text-textPrimary hover:opacity-90'
@@ -65,7 +65,7 @@ export default function InboxView({
         {/* Search Input */}
         <div className="relative max-w-md w-full">
           <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-textSecondary">
-            <Search size={16} />
+            <Search size={20} />
           </span>
           <input
             type="text"
@@ -147,7 +147,7 @@ export default function InboxView({
                         }`}
                         title={item.completed ? "Mark incomplete" : "Mark as completed"}
                       >
-                        <Check size={14} />
+                        <Check size={20} />
                       </button>
                     )}
                     <button
@@ -155,7 +155,7 @@ export default function InboxView({
                       className="p-1.5 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 text-textSecondary rounded-full transition-colors"
                       title="Delete item"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={20} />
                     </button>
                   </div>
                 </div>
@@ -163,7 +163,7 @@ export default function InboxView({
                 {/* Gemini AI Smart Summary */}
                 {item.smartSummary && (
                   <div className="flex items-center gap-1.5 mb-2.5 text-xs font-semibold text-textPrimary bg-surfaceSecondary border border-border rounded-lg px-2.5 py-1 w-fit">
-                    <Sparkles size={11} className="text-yellow-600 dark:text-yellow-400 shrink-0" />
+                    <Sparkles size={20} className="text-yellow-600 dark:text-yellow-400 shrink-0" />
                     <span className="line-clamp-1">{item.smartSummary}</span>
                   </div>
                 )}
@@ -181,7 +181,7 @@ export default function InboxView({
                 {/* Area / Project Path */}
                 {item.area && (
                   <div className="flex items-center gap-1.5 text-xs text-textSecondary font-medium">
-                    <Folder size={12} className="shrink-0 text-textSecondary/70" />
+                    <Folder size={20} className="shrink-0 text-textSecondary/70" />
                     <span className="hover:text-textPrimary cursor-pointer">{item.area}</span>
                     {item.project && (
                       <>
@@ -214,7 +214,7 @@ export default function InboxView({
 
                 {/* Calendar Schedule Input (Interactive scheduling!) */}
                 <div className="flex items-center gap-2 mt-1">
-                  <Calendar size={11} className="text-textSecondary/70" />
+                  <Calendar size={20} className="text-textSecondary/70" />
                   <input
                     type="date"
                     value={item.scheduledDate || ''}

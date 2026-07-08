@@ -116,14 +116,14 @@ export default function CalendarView({ items, onScheduleItem }: CalendarViewProp
                   className="p-1 hover:bg-surface rounded text-textSecondary hover:text-textPrimary transition-colors cursor-pointer"
                   title="Previous month"
                 >
-                  <ChevronLeft size={14} />
+                  <ChevronLeft size={20} />
                 </button>
                 <button 
                   onClick={handleNextMonth} 
                   className="p-1 hover:bg-surface rounded text-textSecondary hover:text-textPrimary transition-colors cursor-pointer"
                   title="Next month"
                 >
-                  <ChevronRight size={14} />
+                  <ChevronRight size={20} />
                 </button>
               </div>
             </div>
@@ -217,7 +217,7 @@ export default function CalendarView({ items, onScheduleItem }: CalendarViewProp
             {/* Header */}
             <div className="border-b border-border pb-4 mb-4">
               <div className="flex items-center gap-2 text-xs font-semibold text-textSecondary uppercase tracking-wider mb-1">
-                <Clock size={13} />
+                <Clock size={20} />
                 <span>Selected Schedule</span>
               </div>
               <h3 className="text-base font-bold text-textPrimary font-headline">
@@ -228,7 +228,7 @@ export default function CalendarView({ items, onScheduleItem }: CalendarViewProp
             {/* List */}
             {selectedDateItems.length === 0 ? (
               <div className="text-center py-12 flex flex-col items-center">
-                <CalendarDays size={24} className="text-textSecondary/40 mb-2" />
+                <CalendarDays size={20} className="text-textSecondary/40 mb-2" />
                 <p className="text-xs text-textSecondary font-medium">No items scheduled for this day.</p>
                 <p className="text-[10px] text-textSecondary/70 mt-1 max-w-[180px]">
                   Go to Inbox, select a task card, and set a date to schedule it.
@@ -251,7 +251,7 @@ export default function CalendarView({ items, onScheduleItem }: CalendarViewProp
                         </span>
                         {item.smartSummary && (
                           <div className="flex items-center gap-1 text-[9px] text-yellow-600 dark:text-yellow-400 font-semibold bg-yellow-50 dark:bg-yellow-950/20 px-1.5 py-0.5 rounded">
-                            <Sparkles size={8} />
+                            <Sparkles size={20} />
                             <span>AI Summary</span>
                           </div>
                         )}

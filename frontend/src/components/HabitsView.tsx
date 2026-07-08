@@ -182,7 +182,7 @@ export default function HabitsView({
           onClick={() => handleOpenAddForm()}
           className="flex items-center gap-1.5 bg-pill-active text-pill-active-text hover:opacity-90 px-4 py-2.5 rounded-full text-xs font-semibold shadow-md transition-all hover:scale-105 cursor-pointer"
         >
-          <Plus size={14} />
+          <Plus size={20} />
           <span>New Habit</span>
         </button>
       </div>
@@ -216,13 +216,13 @@ export default function HabitsView({
                 {!hasHabits ? (
                   /* Empty state for project */
                   <div className="flex flex-col items-center justify-center text-center py-8 bg-surfaceSecondary rounded-2xl border border-dashed border-border mb-6">
-                    <CalendarDays size={28} className="text-textSecondary/40 mb-2" />
+                    <CalendarDays size={20} className="text-textSecondary/40 mb-2" />
                     <span className="text-xs font-semibold text-textPrimary mb-2">No habits created yet.</span>
                     <button
                       onClick={() => handleOpenAddForm(proj.name)}
                       className="flex items-center gap-1 bg-pill hover:opacity-90 px-3 py-1.5 rounded-full text-[10px] font-bold text-textPrimary transition-all shadow-sm cursor-pointer"
                     >
-                      <Plus size={10} />
+                      <Plus size={20} />
                       <span>Create Habit</span>
                     </button>
                   </div>
@@ -259,7 +259,7 @@ export default function HabitsView({
                             {/* Inline Streak Indicator */}
                             {habit.streak > 0 && (
                               <div className="flex items-center gap-0.5 bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full font-mono shrink-0">
-                                <Zap size={8} className="fill-current" />
+                                <Zap size={20} className="fill-current" />
                                 <span>{habit.streak}d</span>
                               </div>
                             )}
@@ -274,7 +274,7 @@ export default function HabitsView({
                                 className="p-1 hover:bg-pill text-textSecondary rounded-lg transition-colors cursor-pointer"
                                 title="Edit & Details"
                               >
-                                <Edit2 size={11} />
+                                <Edit2 size={20} />
                               </button>
                               <button
                                 onClick={(e) => {
@@ -288,7 +288,7 @@ export default function HabitsView({
                                 }`}
                                 title="Mark Complete for Today"
                               >
-                                <Check size={11} className="stroke-[3]" />
+                                <Check size={20} className="stroke-[3]" />
                               </button>
                             </div>
                           </div>
@@ -311,7 +311,7 @@ export default function HabitsView({
                                   }`}
                                   title={`${habit.name} - ${day.dateStr}`}
                                 >
-                                  {isCompleted && <Check size={10} strokeWidth={4} />}
+                                  {isCompleted && <Check size={20} strokeWidth={4} />}
                                 </button>
                               );
                             })}
@@ -377,7 +377,7 @@ export default function HabitsView({
                         
                         {habit.streak > 0 && (
                           <div className="flex items-center gap-0.5 bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full font-mono shrink-0">
-                            <Zap size={8} className="fill-current" />
+                            <Zap size={20} className="fill-current" />
                             <span>{habit.streak}d</span>
                           </div>
                         )}
@@ -391,7 +391,7 @@ export default function HabitsView({
                             className="p-1 hover:bg-pill text-textSecondary rounded-lg transition-colors cursor-pointer"
                             title="Edit & Details"
                           >
-                            <Edit2 size={11} />
+                            <Edit2 size={20} />
                           </button>
                           <button
                             onClick={(e) => {
@@ -405,7 +405,7 @@ export default function HabitsView({
                             }`}
                             title="Mark Complete for Today"
                           >
-                            <Check size={11} className="stroke-[3]" />
+                            <Check size={20} className="stroke-[3]" />
                           </button>
                         </div>
                       </div>
@@ -427,7 +427,7 @@ export default function HabitsView({
                               }`}
                               title={`${habit.name} - ${day.dateStr}`}
                             >
-                              {isCompleted && <Check size={10} strokeWidth={4} />}
+                              {isCompleted && <Check size={20} strokeWidth={4} />}
                             </button>
                           );
                         })}
@@ -452,7 +452,7 @@ export default function HabitsView({
       {habits.length === 0 && (
         <div className="bg-surface border border-border rounded-[32px] p-12 text-center flex flex-col items-center justify-center min-h-[40vh] canvas-shadow mt-8 max-w-2xl mx-auto">
           <div className="p-4 bg-surfaceSecondary border border-border rounded-2xl mb-4 text-textSecondary">
-            <CalendarDays size={40} />
+            <CalendarDays size={20} />
           </div>
           <h3 className="text-lg font-headline font-bold text-textPrimary mb-2">No habits created yet</h3>
           <p className="text-sm text-textSecondary max-w-sm mb-6">
@@ -462,7 +462,7 @@ export default function HabitsView({
             onClick={() => handleOpenAddForm()}
             className="flex items-center gap-1.5 bg-pill-active text-pill-active-text hover:opacity-90 px-5 py-2.5 rounded-full text-xs font-semibold shadow-md transition-all hover:scale-105 cursor-pointer"
           >
-            <Plus size={14} />
+            <Plus size={20} />
             <span>Create Habit</span>
           </button>
         </div>
@@ -490,7 +490,7 @@ export default function HabitsView({
                   onClick={() => setSelectedHabit(null)}
                   className="p-1.5 hover:bg-surfaceSecondary text-textSecondary hover:text-textPrimary rounded-full transition-colors cursor-pointer"
                 >
-                  <X size={18} />
+                  <X size={20} />
                 </button>
               </div>
 
@@ -512,7 +512,7 @@ export default function HabitsView({
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-surfaceSecondary border border-border p-4 rounded-2xl">
                   <div className="flex items-center gap-1 text-amber-500 mb-1">
-                    <Zap size={14} className="fill-current" />
+                    <Zap size={20} className="fill-current" />
                     <span className="text-[10px] font-bold text-textSecondary uppercase tracking-wider">Current Streak</span>
                   </div>
                   <div className="text-xl font-extrabold text-textPrimary font-mono">
@@ -522,7 +522,7 @@ export default function HabitsView({
 
                 <div className="bg-surfaceSecondary border border-border p-4 rounded-2xl">
                   <div className="flex items-center gap-1 text-amber-500 mb-1">
-                    <Award size={14} />
+                    <Award size={20} />
                     <span className="text-[10px] font-bold text-textSecondary uppercase tracking-wider">Longest Streak</span>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -632,7 +632,7 @@ export default function HabitsView({
                 }}
                 className="flex items-center gap-1 px-4 py-2 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20 text-textSecondary rounded-xl text-xs font-semibold transition-colors cursor-pointer"
               >
-                <Trash2 size={13} />
+                <Trash2 size={20} />
                 <span>Delete Habit</span>
               </button>
               
@@ -643,7 +643,7 @@ export default function HabitsView({
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-pill hover:opacity-90 rounded-full text-[10px] font-extrabold text-textPrimary transition-all uppercase cursor-pointer"
               >
-                <RefreshCw size={10} />
+                <RefreshCw size={20} />
                 <span>Change to {selectedHabit.frequency === 'daily' ? 'Weekly' : 'Daily'}</span>
               </button>
             </div>
@@ -671,7 +671,7 @@ export default function HabitsView({
                 onClick={() => setShowAddForm(false)}
                 className="p-1.5 hover:bg-surfaceSecondary text-textSecondary hover:text-textPrimary rounded-full transition-colors cursor-pointer"
               >
-                <X size={16} />
+                <X size={20} />
               </button>
             </div>
 

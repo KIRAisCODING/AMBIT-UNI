@@ -72,7 +72,7 @@ export default function UnassignedView({
       {unassignedItems.length === 0 ? (
         <div className="bg-surface border border-border rounded-[28px] canvas-shadow p-12 text-center flex flex-col items-center justify-center min-h-[40vh]">
           <div className="mb-4 inline-flex p-4 rounded-full bg-surfaceSecondary text-textSecondary border border-border">
-            <Check size={28} />
+            <Check size={20} />
           </div>
           <h3 className="text-lg font-headline font-semibold text-textPrimary mb-1">
             All clear!
@@ -108,7 +108,7 @@ export default function UnassignedView({
 
                   {item.smartSummary && (
                     <div className="flex items-center gap-1.5 mb-1 text-xs font-semibold text-textPrimary bg-surfaceSecondary border border-border rounded-lg px-2.5 py-1 w-fit">
-                      <Sparkles size={11} className="text-yellow-600 dark:text-yellow-400 shrink-0" />
+                      <Sparkles size={20} className="text-yellow-600 dark:text-yellow-400 shrink-0" />
                       <span>{item.smartSummary}</span>
                     </div>
                   )}
@@ -141,7 +141,7 @@ export default function UnassignedView({
                         {hierarchy.map(a => <option key={a.name} value={a.name}>{a.name}</option>)}
                       </select>
 
-                      <ArrowRight size={12} className="text-textSecondary" />
+                      <ArrowRight size={20} className="text-textSecondary" />
 
                       {/* Project */}
                       <select 
@@ -157,7 +157,7 @@ export default function UnassignedView({
                         )}
                       </select>
 
-                      <ArrowRight size={12} className="text-textSecondary" />
+                      <ArrowRight size={20} className="text-textSecondary" />
 
                       {/* Subproject */}
                       <select 
@@ -192,7 +192,7 @@ export default function UnassignedView({
                         onClick={() => handleStartAssigning(item)}
                         className="flex items-center gap-1.5 bg-pill hover:opacity-90 text-textPrimary px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shadow-sm cursor-pointer"
                       >
-                        <FolderOpen size={13} />
+                        <FolderOpen size={20} />
                         <span>Organise & File</span>
                       </button>
                       
@@ -201,7 +201,7 @@ export default function UnassignedView({
                         className="p-2 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 text-textSecondary rounded-full transition-colors cursor-pointer"
                         title="Delete thought"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={20} />
                       </button>
                     </div>
                   )}

@@ -98,7 +98,7 @@ export default function BrainChat({ items, isOpen, onClose }: BrainChatProps) {
       <div className="p-5 border-b border-border flex items-center justify-between bg-surface">
         <div className="flex items-center gap-2.5">
           <div className="p-2 bg-pill-active text-pill-active-text rounded-xl">
-            <Brain size={18} className="animate-pulse" />
+            <Brain size={20} className="animate-pulse" />
           </div>
           <div>
             <h3 className="font-bold text-sm text-textPrimary font-headline">Ask My Brain</h3>
@@ -115,13 +115,13 @@ export default function BrainChat({ items, isOpen, onClose }: BrainChatProps) {
             className="p-2 hover:bg-surfaceSecondary rounded-lg text-textSecondary hover:text-textPrimary transition-colors cursor-pointer"
             title="Clear chat history"
           >
-            <RefreshCw size={14} />
+            <RefreshCw size={20} />
           </button>
           <button 
             onClick={onClose}
             className="p-2 hover:bg-surfaceSecondary rounded-lg text-textSecondary hover:text-textPrimary transition-colors cursor-pointer"
           >
-            <X size={16} />
+            <X size={20} />
           </button>
         </div>
       </div>
@@ -148,7 +148,7 @@ export default function BrainChat({ items, isOpen, onClose }: BrainChatProps) {
               <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border border-border ${
                 isUser ? 'bg-surfaceSecondary text-textPrimary' : 'bg-pill-active text-pill-active-text'
               }`}>
-                {isUser ? <User size={14} /> : <Sparkles size={14} className="text-yellow-400" />}
+                {isUser ? <User size={20} /> : <Sparkles size={20} className="text-yellow-400" />}
               </div>
 
               {/* Message Bubble */}
@@ -168,7 +168,7 @@ export default function BrainChat({ items, isOpen, onClose }: BrainChatProps) {
         {isLoading && (
           <div className="flex gap-3 max-w-[85%] mr-auto animate-pulse">
             <div className="w-8 h-8 rounded-xl bg-pill-active text-pill-active-text flex items-center justify-center border border-border">
-              <Sparkles size={14} className="animate-spin text-yellow-400" />
+              <Sparkles size={20} className="animate-spin text-yellow-400" />
             </div>
             <div className="p-4 bg-surface text-textSecondary border border-border rounded-2xl rounded-tl-none canvas-shadow text-xs font-semibold flex items-center gap-2">
               <span>AMBIT is scanning memory indexes...</span>
@@ -179,7 +179,7 @@ export default function BrainChat({ items, isOpen, onClose }: BrainChatProps) {
         {/* Error Notification */}
         {error && (
           <div className="p-4 bg-red-50 dark:bg-red-950/20 text-[#ba1a1a] dark:text-red-300 rounded-xl text-xs font-semibold flex items-start gap-2 border border-red-200 dark:border-red-900/20">
-            <AlertCircle size={16} className="shrink-0 mt-0.5" />
+            <AlertCircle size={20} className="shrink-0 mt-0.5" />
             <div>
               <p className="font-bold">Error retrieving brain data</p>
               <p className="text-[10px] opacity-80 mt-1">{error}</p>
@@ -208,7 +208,7 @@ export default function BrainChat({ items, isOpen, onClose }: BrainChatProps) {
               (!input.trim() || isLoading) ? 'opacity-30 cursor-not-allowed' : ''
             }`}
           >
-            <Send size={14} />
+            <Send size={20} />
           </button>
         </div>
         <p className="text-[9px] text-textSecondary text-center mt-2.5 font-medium">

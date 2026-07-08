@@ -234,7 +234,7 @@ export default function Sidebar({
             onClick={onClose}
             title="Close sidebar"
           >
-            <PanelLeftClose size={18} />
+            <PanelLeftClose size={20} />
           </button>
         </div>
 
@@ -254,7 +254,7 @@ export default function Sidebar({
                     : 'text-textSecondary hover:bg-surfaceSecondary hover:text-textPrimary'
                 }`}
               >
-                <Icon size={18} className={isActive ? 'text-pill-active-text' : 'text-textSecondary'} />
+                <Icon size={20} className={isActive ? 'text-pill-active-text' : 'text-textSecondary'} />
                 <span className="text-sm">{item.label}</span>
               </button>
             );
@@ -268,7 +268,7 @@ export default function Sidebar({
             }}
             className="w-full flex items-center gap-3 px-4 py-2.5 mt-1.5 rounded-xl font-medium transition-all duration-200 text-left bg-pill-active text-pill-active-text hover:opacity-90 shadow-md group"
           >
-            <Sparkles size={18} className="text-yellow-400 group-hover:scale-110 transition-transform" />
+            <Sparkles size={20} className="text-yellow-400 group-hover:scale-110 transition-transform" />
             <span className="text-sm font-semibold">Ask My Brain</span>
             <span className="ml-auto text-[9px] bg-pill-active-text/20 text-pill-active-text px-1.5 py-0.5 rounded-full font-bold">AI</span>
           </button>
@@ -281,7 +281,7 @@ export default function Sidebar({
               className="p-0.5 hover:bg-surfaceSecondary rounded transition-colors text-textSecondary hover:text-textPrimary"
               title="Add new Area"
             >
-              <Plus size={12} />
+              <Plus size={20} />
             </button>
           </div>
 
@@ -319,9 +319,9 @@ export default function Sidebar({
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <button className="p-0.5 hover:bg-surfaceSecondary rounded text-textSecondary/75">
-                        {isAreaExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        {isAreaExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
                       </button>
-                      <FolderOpen size={16} className="text-textSecondary flex-shrink-0" />
+                      <FolderOpen size={20} className="text-textSecondary flex-shrink-0" />
                       <span className="text-xs font-bold tracking-tight truncate text-textPrimary">{area.name}</span>
                     </div>
 
@@ -335,14 +335,14 @@ export default function Sidebar({
                         className="p-0.5 hover:bg-surfaceSecondary rounded text-textSecondary"
                         title="Add Project"
                       >
-                        <Plus size={11} />
+                        <Plus size={20} />
                       </button>
                       <button
                         onClick={(e) => handleDeleteArea(e, area.name)}
                         className="p-0.5 hover:bg-red-50 hover:text-red-600 rounded"
                         title="Delete Area"
                       >
-                        <Trash2 size={11} />
+                        <Trash2 size={20} />
                       </button>
                     </div>
                   </div>
@@ -385,9 +385,9 @@ export default function Sidebar({
                             >
                               <div className="flex items-center gap-2 min-w-0">
                                 <button className="p-0.5 rounded text-textSecondary/60">
-                                  {isProjectExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                                  {isProjectExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
                                 </button>
-                                <FolderKanban size={14} className="text-textSecondary flex-shrink-0" />
+                                <FolderKanban size={20} className="text-textSecondary flex-shrink-0" />
                                 <span className="text-[11px] font-semibold truncate text-textPrimary">{project.name}</span>
                               </div>
 
@@ -401,14 +401,14 @@ export default function Sidebar({
                                   className="p-0.5 hover:bg-surfaceSecondary rounded text-textSecondary"
                                   title="Add SubProject"
                                 >
-                                  <Plus size={10} />
+                                  <Plus size={20} />
                                 </button>
                                 <button
                                   onClick={(e) => handleDeleteProject(e, area.name, project.name)}
                                   className="p-0.5 hover:bg-red-50 hover:text-red-600 rounded"
                                   title="Delete Project"
                                 >
-                                  <Trash2 size={10} />
+                                  <Trash2 size={20} />
                                 </button>
                               </div>
                             </div>
@@ -454,7 +454,7 @@ export default function Sidebar({
                                       }`}
                                     >
                                       <div className="flex items-center gap-1.5 min-w-0">
-                                        <Hash size={11} className={isSelected ? 'text-pill-active-text' : 'text-textSecondary/70'} />
+                                        <Hash size={20} className={isSelected ? 'text-pill-active-text' : 'text-textSecondary/70'} />
                                         <span className="truncate">{subProj}</span>
                                       </div>
 
@@ -464,7 +464,7 @@ export default function Sidebar({
                                         className="opacity-0 group-hover/sub:opacity-100 p-0.5 hover:bg-red-50 hover:text-red-600 rounded transition-opacity"
                                         title="Delete SubProject"
                                       >
-                                        <Trash2 size={9} />
+                                        <Trash2 size={20} />
                                       </button>
                                     </div>
                                   );
@@ -499,7 +499,7 @@ export default function Sidebar({
                     : 'text-textSecondary hover:bg-surfaceSecondary hover:text-textPrimary'
                 }`}
               >
-                <Icon size={18} className={isActive ? 'text-pill-active-text' : 'text-textSecondary'} />
+                <Icon size={20} className={isActive ? 'text-pill-active-text' : 'text-textSecondary'} />
                 <span className="text-sm">{item.label}</span>
               </button>
             );
@@ -521,7 +521,7 @@ export default function Sidebar({
                     : 'text-textSecondary hover:bg-surfaceSecondary hover:text-textPrimary'
                 }`}
               >
-                <Icon size={18} className={isActive ? 'text-pill-active-text' : 'text-textSecondary'} />
+                <Icon size={20} className={isActive ? 'text-pill-active-text' : 'text-textSecondary'} />
                 <span className="text-sm">{item.label}</span>
               </button>
             );

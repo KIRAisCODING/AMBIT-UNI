@@ -76,7 +76,7 @@ export default function SettingsView({
           {/* Appearance (Theme Selection) */}
           <div className="bg-surface border border-border p-6 rounded-3xl canvas-shadow">
             <div className="flex items-center gap-2 text-xs font-bold text-textSecondary uppercase tracking-wider mb-5 border-b border-border pb-3">
-              <Eye size={14} />
+              <Eye size={20} />
               <span>Appearance & Design Layout</span>
             </div>
 
@@ -95,7 +95,7 @@ export default function SettingsView({
                       : 'bg-transparent border-border hover:border-textSecondary/45 text-textSecondary'
                   }`}
                 >
-                  <Sun size={15} />
+                  <Sun size={20} />
                   <span>Light Mode (Cosmic Slate)</span>
                 </button>
 
@@ -107,7 +107,7 @@ export default function SettingsView({
                       : 'bg-transparent border-border hover:border-textSecondary/45 text-textSecondary'
                   }`}
                 >
-                  <Moon size={15} />
+                  <Moon size={20} />
                   <span>Dark Mode (Midnight Blue)</span>
                 </button>
               </div>
@@ -117,7 +117,7 @@ export default function SettingsView({
           {/* Keyboard Shortcuts Reference */}
           <div className="bg-surface border border-border p-6 rounded-3xl canvas-shadow">
             <div className="flex items-center gap-2 text-xs font-bold text-textSecondary uppercase tracking-wider mb-4 border-b border-border pb-3">
-              <Keyboard size={14} />
+              <Keyboard size={20} />
               <span>Keyboard Shortcuts Quick Reference</span>
             </div>
 
@@ -146,7 +146,7 @@ export default function SettingsView({
           {/* Notification Alerts Settings */}
           <div className="bg-surface border border-border p-6 rounded-3xl canvas-shadow">
             <div className="flex items-center gap-2 text-xs font-bold text-textSecondary uppercase tracking-wider mb-4 border-b border-border pb-3">
-              <Bell size={14} />
+              <Bell size={20} />
               <span>Workspace Notification Rules</span>
             </div>
 
@@ -210,7 +210,7 @@ export default function SettingsView({
           {/* Database Operations */}
           <div className="bg-surface border border-border p-6 rounded-3xl canvas-shadow">
             <div className="flex items-center gap-2 text-xs font-bold text-textSecondary uppercase tracking-wider mb-4 border-b border-border pb-3">
-              <Database size={14} />
+              <Database size={20} />
               <span>Sandbox Database Storage</span>
             </div>
 
@@ -238,7 +238,7 @@ export default function SettingsView({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-border pt-5">
                 <div>
                   <h4 className="text-sm font-bold text-red-600 flex items-center gap-1.5">
-                    <AlertTriangle size={14} />
+                    <AlertTriangle size={20} />
                     <span>Hard Reset Sandbox</span>
                   </h4>
                   <p className="text-xs text-textSecondary mt-1 max-w-md">
@@ -268,7 +268,7 @@ export default function SettingsView({
           {/* Account Details Card */}
           <div className="bg-surface border border-border p-6 rounded-3xl canvas-shadow">
             <div className="flex items-center gap-2 text-xs font-bold text-textSecondary uppercase tracking-wider mb-4 border-b border-border pb-3">
-              <User size={14} />
+              <User size={20} />
               <span>Personal Profile</span>
             </div>
 
@@ -301,7 +301,7 @@ export default function SettingsView({
                 <div className="flex justify-between">
                   <span className="text-textSecondary">Workspace tier:</span>
                   <span className="font-semibold text-textPrimary flex items-center gap-1">
-                    <ShieldCheck size={11} className="text-green-600" />
+                    <ShieldCheck size={20} className="text-green-600" />
                     <span>Ambit Pro (Sandbox)</span>
                   </span>
                 </div>
@@ -320,7 +320,7 @@ export default function SettingsView({
           {/* Gemini AI Settings details */}
           <div className="bg-surface border border-border p-6 rounded-3xl canvas-shadow">
             <div className="flex items-center gap-2 text-xs font-bold text-textSecondary uppercase tracking-wider mb-4 border-b border-border pb-3">
-              <Cpu size={14} />
+              <Cpu size={20} />
               <span>Gemini Intelligence Core</span>
             </div>
 
@@ -339,7 +339,7 @@ export default function SettingsView({
 
               <div className="bg-surfaceSecondary/50 border border-border/40 p-4 rounded-xl space-y-2 text-xs text-textPrimary leading-relaxed font-medium">
                 <div className="font-bold flex items-center gap-1.5">
-                  <BookOpen size={13} />
+                  <BookOpen size={20} />
                   <span>How Gemini enhances your External Brain:</span>
                 </div>
                 <ul className="list-disc list-inside space-y-1 text-textSecondary pl-1">
