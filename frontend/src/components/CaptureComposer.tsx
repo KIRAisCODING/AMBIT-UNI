@@ -25,20 +25,33 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab }: Cap
   }, [activeTab]);
 
   // Categorization state
-  const [area, setArea] = useState('Work');
-  const [project, setProject] = useState('Product Launch');
-  const [subProject, setSubProject] = useState('Backend');
+  // Categorization state
+  const [area, setArea] = useState('');
+  const [project, setProject] = useState('');
+  const [subProject, setSubProject] = useState('');
 
   // Modal selector state
   const [activeMenuType, setActiveMenuType] = useState<'Area' | 'Project' | 'SubProject' | null>(null);
 
   // Tags state
-  const [tags, setTags] = useState<string[]>(['Hackathon', 'SIH']);
+  const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
 
   // AI loading and status
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(true);
+
+  // Load defaults from hierarchy dynamically
+  useEffect(() => {
+    if (hierarchy && hierarchy.length > 0) {
+      const defaultArea = hierarchy[0].name;
+      const defaultProj = hierarchy[0].projects[0]?.name || '';
+      const defaultSub = hierarchy[0].projects[0]?.subProjects[0] || '';
+      setArea(defaultArea);
+      setProject(defaultProj);
+      setSubProject(defaultSub);
+    }
+  }, [hierarchy]);
 
   // Helper lists derived dynamically from hierarchy
   const areasList = hierarchy.map(a => a.name);
