@@ -4,6 +4,7 @@ import {
   Folder, BookOpen, Briefcase, Clock, Flame, Compass, ChevronDown, CheckCircle2
 } from 'lucide-react';
 import { BrainItem, Habit, AreaHierarchy } from '../types';
+import { useAnalytics } from '../hooks/useAnalytics';
 
 interface AnalyticsViewProps {
   items: BrainItem[];
@@ -30,6 +31,8 @@ export default function AnalyticsView({
   const [timeRange, setTimeRange] = useState<'7days' | '14days' | 'month' | '3months'>('14days');
   const [showRangeDropdown, setShowRangeDropdown] = useState(false);
   
+  const { analyticsData } = useAnalytics(timeRange);
+  
   // Custom interactive state for simulated blockers if there are no real incomplete tasks
   const [simulatedBlockers, setSimulatedBlockers] = useState([
     { id: 'sim-block-1', content: 'Refactor database connection pooling for high-concurrency', project: 'Backend' },
@@ -50,10 +53,8 @@ export default function AnalyticsView({
   // CARD 1: LIFE FOCUS CALCULATIONS
   // Length representing percentage of completed tasks in each Area
   const getAreaProgress = (areaName: string) => {
-    const areaTasks = items.filter(it => it.area === areaName && it.type === 'Task');
-    if (areaTasks.length > 0) {
-      const completed = areaTasks.filter(it => it.completed).length;
-      return Math.round((completed / areaTasks.length) * 100);
+    if (analyticsData?.areaProgress && areaName in analyticsData.areaProgress) {
+      return analyticsData.areaProgress[areaName];
     }
     // High-fidelity fallbacks to make the dashboard look stunning and seeded initially
     const fallbackMap: Record<string, number> = {
@@ -97,21 +98,8 @@ export default function AnalyticsView({
     return data;
   };
 
-  const momentumData = getMomentumData();
-
-  // Get momentum trend status
-  const getMomentumStatus = () => {
-    const half = Math.floor(momentumData.length / 2);
-    const firstHalf = momentumData.slice(0, half).reduce((sum, d) => sum + d.count, 0);
-    const secondHalf = momentumData.slice(half).reduce((sum, d) => sum + d.count, 0);
-
-    if (secondHalf > firstHalf + 2) return { text: 'Improving', color: 'text-emerald-500 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20' };
-    if (secondHalf < firstHalf - 2) return { text: 'Slipping', color: 'text-rose-500 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/20' };
-    if (secondHalf > 0 && firstHalf === 0) return { text: 'Recovering', color: 'text-amber-500 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20' };
-    return { text: 'Stable', color: 'text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-800/30' };
-  };
-
-  const trendStatus = getMomentumStatus();
+  const momentumData = analyticsData?.momentumData || getMomentumData();
+  const trendStatus = analyticsData?.trendStatus || getMomentumStatus();
 
   // Draw smooth SVG path
   const svgWidth = 500;
@@ -181,7 +169,7 @@ export default function AnalyticsView({
     return combined.slice(0, 3);
   };
 
-  const activeProjects = getActiveProjects();
+  const activeProjects = analyticsData?.activeProjects || getActiveProjects();
 
   // CARD 4: WHY AM I STUCK? CALCULATIONS
   // Find project with lowest completion percentage > 0 and has incomplete tasks
@@ -281,11 +269,11 @@ export default function AnalyticsView({
 
   // Get completed habits count for a date (YYYY-MM-DD)
   const getHabitsCompletedOnDate = (dateStr: string) => {
-    return habits.filter(h => h.completedDays.includes(dateStr)).length;
+    return analyticsData?.habitHeatmap?.[dateStr] ?? habits.filter(h => h.completedDays.includes(dateStr)).length;
   };
 
   // CARD 6: UNASSIGNED THOUGHTS
-  const unassignedCount = items.filter(it => it.assignment === 'later' || !it.area).length;
+  const unassignedCount = analyticsData?.unassignedCount ?? items.filter(it => it.assignment === 'later' || !it.area).length;
 
   // CARD 7: THIS WEEK CALCULATIONS
   const getThisWeekMetrics = () => {
@@ -337,7 +325,17 @@ export default function AnalyticsView({
     };
   };
 
-  const thisWeek = getThisWeekMetrics();
+  const getThisWeekCalculated = () => {
+    const calculated = getThisWeekMetrics();
+    return {
+      completedTasks: analyticsData?.thisWeekMetrics?.completedThisWeek ?? calculated.completedTasks,
+      mostActiveArea: calculated.mostActiveArea,
+      leastActiveArea: calculated.leastActiveArea,
+      habitConsistency: analyticsData?.thisWeekMetrics?.habitCompletionRate ?? calculated.habitConsistency,
+    };
+  };
+
+  const thisWeek = getThisWeekCalculated();
 
   // CARD 8: ATTENTION REQUIRED CALCULATIONS
   const getAttentionRequiredAlerts = () => {
