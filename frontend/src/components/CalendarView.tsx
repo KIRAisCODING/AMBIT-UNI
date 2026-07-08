@@ -10,39 +10,62 @@ interface CalendarViewProps {
 }
 
 export default function CalendarView({ items, onScheduleItem }: CalendarViewProps) {
-  // Current local time metadata tells us it is July 2026.
-  // We'll hardcode July 2026 as the active calendar month to make it extremely accurate!
-  const year = 2026;
-  const monthIdx = 6; // July is 6 (0-indexed)
-  const monthName = "July 2026";
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
 
-  const [selectedDateStr, setSelectedDateStr] = useState("2026-07-06"); // Defaults to Today: July 6th, 2026
+  const [currentYear, setCurrentYear] = useState(today.getFullYear());
+  const [currentMonthIdx, setCurrentMonthIdx] = useState(today.getMonth()); // 0-indexed
+  const [selectedDateStr, setSelectedDateStr] = useState(todayStr);
 
-  // Generate days grid for July 2026
-  // July 1st, 2026 is a Wednesday.
-  // 1st Wed, 2nd Thu, 3rd Fri, 4th Sat, 5th Sun, 6th Mon (Today)
-  // Let's create an array representing the calendar days grid (including padding).
-  const daysInMonth = 31;
-  const startDayOffset = 3; // Wednesday (0 for Sun, 1 for Mon, 2 for Tue, 3 for Wed)
+  const monthName = new Date(currentYear, currentMonthIdx).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+  const handlePrevMonth = () => {
+    if (currentMonthIdx === 0) {
+      setCurrentMonthIdx(11);
+      setCurrentYear(prev => prev - 1);
+    } else {
+      setCurrentMonthIdx(prev => prev - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (currentMonthIdx === 11) {
+      setCurrentMonthIdx(0);
+      setCurrentYear(prev => prev + 1);
+    } else {
+      setCurrentMonthIdx(prev => prev + 1);
+    }
+  };
 
   const calendarGrid = [];
   
-  // Padding for previous month (June 2026 ends on Tuesday June 30th)
+  // July 2026 starts:
+  const daysInMonth = new Date(currentYear, currentMonthIdx + 1, 0).getDate();
+  const startDayOffset = new Date(currentYear, currentMonthIdx, 1).getDay();
+
+  // Padding for previous month
+  const prevMonthDays = new Date(currentYear, currentMonthIdx, 0).getDate();
   for (let i = startDayOffset - 1; i >= 0; i--) {
+    const prevMonth = currentMonthIdx === 0 ? 11 : currentMonthIdx - 1;
+    const prevYear = currentMonthIdx === 0 ? currentYear - 1 : currentYear;
+    const dayVal = prevMonthDays - i;
+    const paddedDay = dayVal < 10 ? `0${dayVal}` : dayVal;
+    const paddedMonth = (prevMonth + 1) < 10 ? `0${prevMonth + 1}` : (prevMonth + 1);
     calendarGrid.push({
-      dayNum: 30 - i,
+      dayNum: dayVal,
       isCurrentMonth: false,
-      dateStr: `2026-06-${30 - i}`
+      dateStr: `${prevYear}-${paddedMonth}-${paddedDay}`
     });
   }
 
   // Active Month Days
   for (let d = 1; d <= daysInMonth; d++) {
     const paddedDay = d < 10 ? `0${d}` : d;
+    const paddedMonth = (currentMonthIdx + 1) < 10 ? `0${currentMonthIdx + 1}` : (currentMonthIdx + 1);
     calendarGrid.push({
       dayNum: d,
       isCurrentMonth: true,
-      dateStr: `2026-07-${paddedDay}`
+      dateStr: `${currentYear}-${paddedMonth}-${paddedDay}`
     });
   }
 
@@ -50,11 +73,14 @@ export default function CalendarView({ items, onScheduleItem }: CalendarViewProp
   const totalSlotsNeeded = 42; // 6 rows of 7 days
   const remainingSlots = totalSlotsNeeded - calendarGrid.length;
   for (let d = 1; d <= remainingSlots; d++) {
+    const nextMonth = currentMonthIdx === 11 ? 0 : currentMonthIdx + 1;
+    const nextYear = currentMonthIdx === 11 ? currentYear + 1 : currentYear;
     const paddedDay = d < 10 ? `0${d}` : d;
+    const paddedMonth = (nextMonth + 1) < 10 ? `0${nextMonth + 1}` : (nextMonth + 1);
     calendarGrid.push({
       dayNum: d,
       isCurrentMonth: false,
-      dateStr: `2026-08-${paddedDay}`
+      dateStr: `${nextYear}-${paddedMonth}-${paddedDay}`
     });
   }
 
@@ -82,7 +108,25 @@ export default function CalendarView({ items, onScheduleItem }: CalendarViewProp
         {/* Calendar Grid (Col Span 2) */}
         <div className="lg:col-span-2 bg-surface border border-border rounded-2xl p-6 canvas-shadow">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold text-lg text-textPrimary font-headline">{monthName}</h3>
+            <div className="flex items-center gap-3">
+              <h3 className="font-bold text-lg text-textPrimary font-headline">{monthName}</h3>
+              <div className="flex items-center gap-1 bg-pill p-0.5 rounded-lg border border-border">
+                <button 
+                  onClick={handlePrevMonth} 
+                  className="p-1 hover:bg-surface rounded text-textSecondary hover:text-textPrimary transition-colors cursor-pointer"
+                  title="Previous month"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <button 
+                  onClick={handleNextMonth} 
+                  className="p-1 hover:bg-surface rounded text-textSecondary hover:text-textPrimary transition-colors cursor-pointer"
+                  title="Next month"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
             <div className="flex items-center gap-1">
               <span className="text-xs bg-pill text-textSecondary font-mono px-3 py-1 rounded-full font-semibold">
                 Spark Workspace Active
@@ -104,7 +148,7 @@ export default function CalendarView({ items, onScheduleItem }: CalendarViewProp
           {/* Days Grid */}
           <div className="grid grid-cols-7 gap-2">
             {calendarGrid.map((slot, index) => {
-              const isToday = slot.dateStr === "2026-07-06";
+              const isToday = slot.dateStr === todayStr;
               const isSelected = slot.dateStr === selectedDateStr;
               const dateItems = getItemsForDate(slot.dateStr);
               const hasItems = dateItems.length > 0;
@@ -231,7 +275,7 @@ export default function CalendarView({ items, onScheduleItem }: CalendarViewProp
           <div className="bg-surfaceSecondary/50 border border-border p-4 rounded-xl mt-6">
             <h4 className="text-xs font-bold text-textPrimary mb-1">Workspace Schedule Info</h4>
             <p className="text-[10px] text-textSecondary leading-normal">
-              July 2026 is fully simulated. This schedule links to your browser's persistent sandbox so your changes remain saved.
+              This calendar planner is fully live and connected to your database workspace. Scheduling a task date updates the record in real-time.
             </p>
           </div>
         </div>
