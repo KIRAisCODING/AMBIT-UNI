@@ -111,6 +111,19 @@ export function useSettings() {
     }
   };
 
+  const resetData = async (action: 'clear' | 'seed') => {
+    try {
+      await fetch('/api/settings/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      window.location.reload();
+    } catch (err) {
+      console.error('Failed to reset data:', err);
+    }
+  };
+
   const login = async () => {
     console.log('Redirecting to Google OAuth login...');
     setIsAuthenticated(true);
@@ -127,6 +140,7 @@ export function useSettings() {
     isAuthenticated,
     isLoading,
     updateSettings,
+    resetData,
     login,
     logout,
   };
