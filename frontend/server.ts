@@ -160,6 +160,43 @@ Instructions:
   }
 });
 
+// Proxy all other /api routes to the Next.js backend on port 3001
+app.all("/api/*", async (req, res) => {
+  try {
+    const backendUrl = `http://127.0.0.1:3001${req.originalUrl}`;
+    
+    let body = undefined;
+    if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+      body = JSON.stringify(req.body);
+    }
+
+    const headers: Record<string, string> = {};
+    for (const [key, val] of Object.entries(req.headers)) {
+      if (typeof val === "string" && key.toLowerCase() !== "host" && key.toLowerCase() !== "content-length") {
+        headers[key] = val;
+      }
+    }
+    headers["content-type"] = "application/json";
+
+    const response = await fetch(backendUrl, {
+      method: req.method,
+      headers,
+      body,
+    });
+
+    res.status(response.status);
+    const data = await response.json().catch(() => null);
+    if (data) {
+      res.json(data);
+    } else {
+      res.end();
+    }
+  } catch (error: any) {
+    console.error("Proxy Error:", error.message);
+    res.status(500).json({ error: "Failed to connect to Next.js backend." });
+  }
+});
+
 // Serve frontend assets
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
