@@ -2,33 +2,54 @@ import React, { useState } from 'react';
 import { 
   Sparkles, Check, FolderOpen, ArrowRight, Trash2, Tag, Calendar 
 } from 'lucide-react';
-import { BrainItem } from '../types';
+import { BrainItem, AreaHierarchy } from '../types';
 
 interface UnassignedViewProps {
   items: BrainItem[];
   onAssignItem: (id: string, area: string, project: string, subProject: string) => void;
   onDeleteItem: (id: string) => void;
+  hierarchy: AreaHierarchy[];
 }
-
-const areas = ['Work', 'Personal', 'Education', 'Side Projects'];
-const projects = ['Product Launch', 'Health & Fitness', 'Home Office', 'App Design'];
-const subProjects = ['Backend', 'Frontend', 'Database', 'QA Testing'];
 
 export default function UnassignedView({ 
   items, 
   onAssignItem,
-  onDeleteItem 
+  onDeleteItem,
+  hierarchy = []
 }: UnassignedViewProps) {
   const unassignedItems = items.filter(it => it.assignment === 'later');
 
   // Interactive assign state
   const [assigningId, setAssigningId] = useState<string | null>(null);
-  const [selectedArea, setSelectedArea] = useState(areas[0]);
-  const [selectedProject, setSelectedProject] = useState(projects[0]);
-  const [selectedSubProject, setSelectedSubProject] = useState(subProjects[0]);
+  const [selectedArea, setSelectedArea] = useState('');
+  const [selectedProject, setSelectedProject] = useState('');
+  const [selectedSubProject, setSelectedSubProject] = useState('');
 
   const handleStartAssigning = (item: BrainItem) => {
     setAssigningId(item.id);
+    const defaultArea = hierarchy[0]?.name || '';
+    const defaultProject = hierarchy[0]?.projects[0]?.name || '';
+    const defaultSubProject = hierarchy[0]?.projects[0]?.subProjects[0]?.name || '';
+    setSelectedArea(defaultArea);
+    setSelectedProject(defaultProject);
+    setSelectedSubProject(defaultSubProject);
+  };
+
+  const handleAreaChange = (areaName: string) => {
+    setSelectedArea(areaName);
+    const areaObj = hierarchy.find(a => a.name === areaName);
+    const projName = areaObj?.projects[0]?.name || '';
+    setSelectedProject(projName);
+    const subProjName = areaObj?.projects[0]?.subProjects[0]?.name || '';
+    setSelectedSubProject(subProjName);
+  };
+
+  const handleProjectChange = (projectName: string) => {
+    setSelectedProject(projectName);
+    const areaObj = hierarchy.find(a => a.name === selectedArea);
+    const projObj = areaObj?.projects.find(p => p.name === projectName);
+    const subProjName = projObj?.subProjects[0]?.name || '';
+    setSelectedSubProject(subProjName);
   };
 
   const handleConfirmAssign = (id: string) => {
@@ -64,6 +85,10 @@ export default function UnassignedView({
         <div className="space-y-4">
           {unassignedItems.map((item) => {
             const isAssigning = assigningId === item.id;
+            const areaObj = hierarchy.find(a => a.name === selectedArea);
+            const availableProjects = areaObj?.projects || [];
+            const projObj = availableProjects.find(p => p.name === selectedProject);
+            const availableSubProjects = projObj?.subProjects || [];
 
             return (
               <div 
@@ -110,10 +135,10 @@ export default function UnassignedView({
                       {/* Area */}
                       <select 
                         value={selectedArea}
-                        onChange={(e) => setSelectedArea(e.target.value)}
+                        onChange={(e) => handleAreaChange(e.target.value)}
                         className="bg-surface border border-border rounded-lg text-xs py-1.5 px-2.5 font-medium text-textPrimary focus:ring-1 focus:ring-accent outline-none"
                       >
-                        {areas.map(a => <option key={a} value={a}>{a}</option>)}
+                        {hierarchy.map(a => <option key={a.name} value={a.name}>{a.name}</option>)}
                       </select>
 
                       <ArrowRight size={12} className="text-textSecondary" />
@@ -121,10 +146,15 @@ export default function UnassignedView({
                       {/* Project */}
                       <select 
                         value={selectedProject}
-                        onChange={(e) => setSelectedProject(e.target.value)}
+                        onChange={(e) => handleProjectChange(e.target.value)}
                         className="bg-surface border border-border rounded-lg text-xs py-1.5 px-2.5 font-medium text-textPrimary focus:ring-1 focus:ring-accent outline-none"
+                        disabled={availableProjects.length === 0}
                       >
-                        {projects.map(p => <option key={p} value={p}>{p}</option>)}
+                        {availableProjects.length === 0 ? (
+                          <option value="">No Projects</option>
+                        ) : (
+                          availableProjects.map(p => <option key={p.name} value={p.name}>{p.name}</option>)
+                        )}
                       </select>
 
                       <ArrowRight size={12} className="text-textSecondary" />
@@ -134,8 +164,13 @@ export default function UnassignedView({
                         value={selectedSubProject}
                         onChange={(e) => setSelectedSubProject(e.target.value)}
                         className="bg-surface border border-border rounded-lg text-xs py-1.5 px-2.5 font-mono text-textPrimary focus:ring-1 focus:ring-accent outline-none"
+                        disabled={availableSubProjects.length === 0}
                       >
-                        {subProjects.map(sp => <option key={sp} value={sp}>{sp}</option>)}
+                        {availableSubProjects.length === 0 ? (
+                          <option value="">No Subprojects</option>
+                        ) : (
+                          availableSubProjects.map(sp => <option key={sp.name} value={sp.name}>{sp.name}</option>)
+                        )}
                       </select>
 
                       <button

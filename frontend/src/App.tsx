@@ -183,6 +183,7 @@ export default function App() {
             items={items} 
             onAssignItem={handleAssignItem}
             onDeleteItem={handleDeleteItem}
+            hierarchy={hierarchy}
           />
         );
       case 'Habits':
