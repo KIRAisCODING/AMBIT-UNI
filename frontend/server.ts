@@ -37,7 +37,7 @@ function getGeminiClient(): GoogleGenAI {
 async function checkAuth(req: express.Request): Promise<boolean> {
   try {
     const cookieHeader = req.headers.cookie || "";
-    const sessionRes = await fetch("http://127.0.0.1:3001/api/auth/session", {
+    const sessionRes = await fetch("http://localhost:3001/api/auth/session", {
       headers: { cookie: cookieHeader },
     });
     if (!sessionRes.ok) return false;
@@ -187,7 +187,7 @@ Instructions:
 // Proxy all other /api routes to the Next.js backend on port 3001
 app.all("/api/*", async (req, res) => {
   try {
-    const backendUrl = `http://127.0.0.1:3001${req.originalUrl}`;
+    const backendUrl = `http://localhost:3001${req.originalUrl}`;
     
     let body = undefined;
     if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {

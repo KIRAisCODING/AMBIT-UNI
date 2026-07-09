@@ -4,6 +4,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: process.env.AUTH_SECRET,
   adapter: PrismaAdapter(prisma),
   providers: [
     Google({
@@ -28,7 +29,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
     async redirect({ url, baseUrl }) {
-      if (url.startsWith("http://localhost:3000") || url.startsWith("http://127.0.0.1:3000")) {
+      if (url.startsWith("http://localhost:3000")) {
         return url;
       }
       if (url.startsWith("/")) {
