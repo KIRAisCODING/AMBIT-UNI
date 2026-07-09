@@ -10,6 +10,7 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Lazy-initialize Gemini client
 let aiClient: GoogleGenAI | null = null;
@@ -190,7 +191,11 @@ app.all("/api/*", async (req, res) => {
     
     let body = undefined;
     if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
-      body = JSON.stringify(req.body);
+      if (req.headers["content-type"]?.includes("application/x-www-form-urlencoded")) {
+        body = new URLSearchParams(req.body as any).toString();
+      } else {
+        body = JSON.stringify(req.body);
+      }
     }
 
     const headers: Record<string, string> = {};
@@ -199,12 +204,16 @@ app.all("/api/*", async (req, res) => {
         headers[key] = val;
       }
     }
-    headers["content-type"] = "application/json";
+    
+    // Pass forwarding headers so NextAuth generates correct cookie domain & redirects
+    headers["x-forwarded-host"] = req.headers["host"] || "localhost:3000";
+    headers["x-forwarded-proto"] = req.protocol || "http";
 
     const response = await fetch(backendUrl, {
       method: req.method,
       headers,
       body,
+      redirect: "manual", // Prevent auto-following redirects so browser can handle them
     });
 
     res.status(response.status);
@@ -215,12 +224,21 @@ app.all("/api/*", async (req, res) => {
       res.setHeader("set-cookie", setCookies);
     }
 
-    const data = await response.json().catch(() => null);
-    if (data) {
-      res.json(data);
-    } else {
-      res.end();
+    // Forward Location header for redirects
+    const location = response.headers.get("location");
+    if (location) {
+      res.setHeader("location", location);
     }
+
+    // Forward Content-Type header
+    const contentType = response.headers.get("content-type");
+    if (contentType) {
+      res.setHeader("content-type", contentType);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    res.end(buffer);
   } catch (error: any) {
     console.error("Proxy Error:", error.message);
     res.status(500).json({ error: "Failed to connect to Next.js backend." });

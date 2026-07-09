@@ -1,9 +1,34 @@
 import React from 'react';
 
 export default function LoginPage() {
-  const handleGoogleLogin = () => {
-    // Redirect browser to standard NextAuth sign-in URL for Google
-    window.location.href = "/api/auth/signin/google";
+  const handleGoogleLogin = async () => {
+    try {
+      // 1. Fetch CSRF token
+      const res = await fetch("/api/auth/csrf");
+      const { csrfToken } = await res.json();
+
+      // 2. Dynamically create form and submit it
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = "/api/auth/signin/google";
+
+      const csrfInput = document.createElement("input");
+      csrfInput.type = "hidden";
+      csrfInput.name = "csrfToken";
+      csrfInput.value = csrfToken;
+      form.appendChild(csrfInput);
+
+      const callbackInput = document.createElement("input");
+      callbackInput.type = "hidden";
+      callbackInput.name = "callbackUrl";
+      callbackInput.value = window.location.origin + "/";
+      form.appendChild(callbackInput);
+
+      document.body.appendChild(form);
+      form.submit();
+    } catch (err) {
+      console.error("Failed to sign in with Google:", err);
+    }
   };
 
   return (
