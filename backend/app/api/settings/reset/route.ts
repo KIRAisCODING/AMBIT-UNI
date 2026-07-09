@@ -1,46 +1,56 @@
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = session.user.id;
+
     const body = await req.json().catch(() => ({}));
     const action = body.action || "clear"; // "clear" or "seed"
 
-    // Transaction to clear everything
+    // Transaction to clear everything belonging to user
     await prisma.$transaction([
-      prisma.task.deleteMany(),
-      prisma.inboxItem.deleteMany(),
-      prisma.habit.deleteMany(),
-      prisma.subProject.deleteMany(),
-      prisma.project.deleteMany(),
-      prisma.area.deleteMany(),
+      prisma.task.deleteMany({ where: { userId } }),
+      prisma.inboxItem.deleteMany({ where: { userId } }),
+      prisma.habit.deleteMany({ where: { userId } }),
+      prisma.subProject.deleteMany({ where: { userId } }),
+      prisma.project.deleteMany({ where: { userId } }),
+      prisma.area.deleteMany({ where: { userId } }),
     ]);
 
     if (action === "seed") {
-      // 1. Seed Areas, Projects, SubProjects
+      // 1. Seed Areas, Projects, SubProjects for this user
       const areaWork = await prisma.area.create({
         data: {
           name: "Work",
+          userId,
           projects: {
             create: [
               {
                 name: "Product Launch",
+                userId,
                 subProjects: {
                   create: [
-                    { name: "Backend" },
-                    { name: "Frontend" },
-                    { name: "Database" },
-                    { name: "QA Testing" },
+                    { name: "Backend", userId },
+                    { name: "Frontend", userId },
+                    { name: "Database", userId },
+                    { name: "QA Testing", userId },
                   ],
                 },
               },
               {
                 name: "Home Office",
+                userId,
                 subProjects: {
                   create: [
-                    { name: "Layout Planning" },
-                    { name: "Acoustics" },
-                    { name: "Ergonomics" },
+                    { name: "Layout Planning", userId },
+                    { name: "Acoustics", userId },
+                    { name: "Ergonomics", userId },
                   ],
                 },
               },
@@ -52,15 +62,17 @@ export async function POST(req: Request) {
       const areaPersonal = await prisma.area.create({
         data: {
           name: "Personal",
+          userId,
           projects: {
             create: [
               {
                 name: "Health & Fitness",
+                userId,
                 subProjects: {
                   create: [
-                    { name: "Workout Routines" },
-                    { name: "Diet Plan" },
-                    { name: "Sleep Tracker" },
+                    { name: "Workout Routines", userId },
+                    { name: "Diet Plan", userId },
+                    { name: "Sleep Tracker", userId },
                   ],
                 },
               },
@@ -72,15 +84,17 @@ export async function POST(req: Request) {
       const areaEducation = await prisma.area.create({
         data: {
           name: "Education",
+          userId,
           projects: {
             create: [
               {
                 name: "Semester 5",
+                userId,
                 subProjects: {
                   create: [
-                    { name: "DBMS" },
-                    { name: "Computer Networks" },
-                    { name: "Software Engineering" },
+                    { name: "DBMS", userId },
+                    { name: "Computer Networks", userId },
+                    { name: "Software Engineering", userId },
                   ],
                 },
               },
@@ -92,15 +106,17 @@ export async function POST(req: Request) {
       const areaSideProjects = await prisma.area.create({
         data: {
           name: "Side Projects",
+          userId,
           projects: {
             create: [
               {
                 name: "App Design",
+                userId,
                 subProjects: {
                   create: [
-                    { name: "Figma Drafts" },
-                    { name: "User Testing" },
-                    { name: "Visual Style" },
+                    { name: "Figma Drafts", userId },
+                    { name: "User Testing", userId },
+                    { name: "Visual Style", userId },
                   ],
                 },
               },
@@ -111,27 +127,27 @@ export async function POST(req: Request) {
 
       // Fetch created hierarchy entities to resolve IDs for tasks and habits
       const workProj = await prisma.project.findFirst({
-        where: { name: "Product Launch", areaId: areaWork.id },
+        where: { name: "Product Launch", areaId: areaWork.id, userId },
       });
       const workSubDB = await prisma.subProject.findFirst({
-        where: { name: "Database", projectId: workProj?.id },
+        where: { name: "Database", projectId: workProj?.id, userId },
       });
       const workSubFE = await prisma.subProject.findFirst({
-        where: { name: "Frontend", projectId: workProj?.id },
+        where: { name: "Frontend", projectId: workProj?.id, userId },
       });
       const workSubBE = await prisma.subProject.findFirst({
-        where: { name: "Backend", projectId: workProj?.id },
+        where: { name: "Backend", projectId: workProj?.id, userId },
       });
 
       const personalProj = await prisma.project.findFirst({
-        where: { name: "Health & Fitness", areaId: areaPersonal.id },
+        where: { name: "Health & Fitness", areaId: areaPersonal.id, userId },
       });
 
       const sideProj = await prisma.project.findFirst({
-        where: { name: "App Design", areaId: areaSideProjects.id },
+        where: { name: "App Design", areaId: areaSideProjects.id, userId },
       });
       const sideSubBE = await prisma.subProject.findFirst({
-        where: { name: "Backend", projectId: sideProj?.id },
+        where: { name: "Backend", projectId: sideProj?.id, userId },
       });
 
       // 2. Seed default items (tasks/notes/ideas)
@@ -143,23 +159,14 @@ export async function POST(req: Request) {
           areaId: areaWork.id,
           projectId: workProj?.id,
           subProjectId: workSubDB?.id,
+          userId,
         },
       });
       await prisma.task.create({
         data: {
           inboxItemId: item1.id,
           completed: false,
-        },
-      });
-
-      const item2 = await prisma.inboxItem.create({
-        data: {
-          content: "Use vector embeddings via Gemini-embedding-2 to automatically cluster related thoughts in the AMBIT canvas",
-          type: "Idea",
-          assigned: true,
-          areaId: areaSideProjects.id,
-          projectId: sideProj?.id,
-          subProjectId: sideSubBE?.id,
+          userId,
         },
       });
 
@@ -171,6 +178,7 @@ export async function POST(req: Request) {
           areaId: areaWork.id,
           projectId: workProj?.id,
           subProjectId: workSubFE?.id,
+          userId,
         },
       });
       await prisma.task.create({
@@ -178,6 +186,7 @@ export async function POST(req: Request) {
           inboxItemId: item3.id,
           deadline: new Date(),
           completed: false,
+          userId,
         },
       });
 
@@ -188,6 +197,7 @@ export async function POST(req: Request) {
           assigned: true,
           areaId: areaPersonal.id,
           projectId: personalProj?.id,
+          userId,
         },
       });
       await prisma.task.create({
@@ -195,6 +205,7 @@ export async function POST(req: Request) {
           inboxItemId: item4.id,
           deadline: new Date(),
           completed: false,
+          userId,
         },
       });
 
@@ -206,6 +217,7 @@ export async function POST(req: Request) {
           areaId: areaWork.id,
           projectId: workProj?.id,
           subProjectId: workSubBE?.id,
+          userId,
         },
       });
       await prisma.task.create({
@@ -213,6 +225,7 @@ export async function POST(req: Request) {
           inboxItemId: item5.id,
           deadline: new Date(Date.now() - 24 * 3600000), // Yesterday
           completed: true,
+          userId,
         },
       });
 
@@ -221,6 +234,7 @@ export async function POST(req: Request) {
           content: "Build a mobile companion shortcut or widget for instantly capturing notes from the Android notification bar without opening the browser",
           type: "Idea",
           assigned: false,
+          userId,
         },
       });
 
@@ -239,6 +253,7 @@ export async function POST(req: Request) {
           notes: "Focus on breathing and mental clarity. Best done in the morning.",
           areaId: areaPersonal.id,
           projectId: personalProj?.id,
+          userId,
         },
       });
 
@@ -257,6 +272,7 @@ export async function POST(req: Request) {
           notes: "Go through Inbox and either complete, assign or schedule raw ideas.",
           areaId: areaWork.id,
           projectId: workProj?.id,
+          userId,
         },
       });
 
@@ -272,6 +288,7 @@ export async function POST(req: Request) {
           notes: 'Currently reading "Designing Data-Intensive Applications".',
           areaId: areaSideProjects.id,
           projectId: sideProj?.id,
+          userId,
         },
       });
     }

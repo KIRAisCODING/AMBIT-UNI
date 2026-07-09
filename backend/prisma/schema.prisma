@@ -7,71 +7,120 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  inboxItems    InboxItem[]
+  areas         Area[]
+  projects      Project[]
+  subProjects   SubProject[]
+  tasks         Task[]
+  habits        Habit[]
+  settings      Settings?
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
 model InboxItem {
   id          String   @id @default(uuid())
-
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   content     String
-
   type        String
-
   assigned    Boolean  @default(false)
-
   areaId      String?
   projectId   String?
   subProjectId String?
-
   createdAt   DateTime @default(now())
-
   task        Task?
 }
 
 model Area {
   id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
-
   projects  Project[]
-
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 }
 
 model Project {
   id          String       @id @default(uuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   name        String
-
   areaId      String
-  area        Area         @relation(fields: [areaId], references: [id])
-
+  area        Area         @relation(fields: [areaId], references: [id], onDelete: Cascade)
   subProjects SubProject[]
-
-  createdAt   DateTime @default(now())
+  createdAt   DateTime     @default(now())
 }
 
 model SubProject {
   id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   name       String
-
   projectId  String
-  project    Project   @relation(fields: [projectId], references: [id])
-
-  createdAt  DateTime @default(now())
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
 }
 
 model Task {
-  id           String   @id @default(uuid())
-
-  inboxItemId  String   @unique
-
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inboxItemId  String    @unique
   description  String?
-
   deadline     DateTime?
-
-  completed    Boolean @default(false)
-
-  inboxItem    InboxItem @relation(fields: [inboxItemId], references: [id])
+  completed    Boolean   @default(false)
+  inboxItem    InboxItem @relation(fields: [inboxItemId], references: [id], onDelete: Cascade)
 }
 
 model Habit {
   id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name          String
   frequency     String   @default("daily")
   streak        Int      @default(0)
@@ -85,7 +134,9 @@ model Habit {
 }
 
 model Settings {
-  id                  String   @id @default("default-settings")
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userName            String   @default("Senior Product Designer")
   userEmail           String   @default("architect@ambit.ai")
   theme               String   @default("light")

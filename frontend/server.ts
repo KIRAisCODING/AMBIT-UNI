@@ -32,9 +32,29 @@ function getGeminiClient(): GoogleGenAI {
   return aiClient;
 }
 
+// Session check helper
+async function checkAuth(req: express.Request): Promise<boolean> {
+  try {
+    const cookieHeader = req.headers.cookie || "";
+    const sessionRes = await fetch("http://127.0.0.1:3001/api/auth/session", {
+      headers: { cookie: cookieHeader },
+    });
+    if (!sessionRes.ok) return false;
+    const session = await sessionRes.json().catch(() => null);
+    return !!(session && session.user);
+  } catch (err) {
+    console.error("Auth check failed in proxy:", err);
+    return false;
+  }
+}
+
 // 1. Analyze captured thoughts endpoint (Extract tags, smart summary, and suggestions)
 app.post("/api/brain/analyze", async (req, res) => {
   try {
+    if (!(await checkAuth(req))) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const { content, type } = req.body;
     if (!content || typeof content !== "string") {
       return res.status(400).json({ error: "Content must be a non-empty string." });
@@ -106,6 +126,10 @@ Keep suggestions humble, highly contextual, and elegant.`;
 // 2. Chat with your external brain endpoint
 app.post("/api/brain/chat", async (req, res) => {
   try {
+    if (!(await checkAuth(req))) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     const { messages, items } = req.body;
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: "Messages array is required." });
@@ -136,7 +160,6 @@ Instructions:
 5. Use bullet points or small bento-like lists to make responses scannable.`;
 
     // Convert messages array to Gemini contents
-    // The format should be: { role: 'user' | 'model', parts: [{ text: ... }] }
     const contents = messages.map((m: any) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.text }]
@@ -185,6 +208,13 @@ app.all("/api/*", async (req, res) => {
     });
 
     res.status(response.status);
+
+    // Forward Set-Cookie headers back to client browser
+    const setCookies = response.headers.getSetCookie();
+    if (setCookies && setCookies.length > 0) {
+      res.setHeader("set-cookie", setCookies);
+    }
+
     const data = await response.json().catch(() => null);
     if (data) {
       res.json(data);

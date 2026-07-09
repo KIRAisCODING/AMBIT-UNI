@@ -1,3 +1,4 @@
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
@@ -6,19 +7,26 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = session.user.id;
     const { id } = await params;
-    const body = await req.json().catch(() => ({}));
     
-    // Default to today's date in local server YYYY-MM-DD
-    const dateStr = body.date || new Date().toISOString().split("T")[0];
-
-    const habit = await prisma.habit.findUnique({
-      where: { id },
+    // Verify ownership
+    const habit = await prisma.habit.findFirst({
+      where: { id, userId },
     });
 
     if (!habit) {
       return NextResponse.json({ error: "Habit not found" }, { status: 404 });
     }
+
+    const body = await req.json().catch(() => ({}));
+    
+    // Default to today's date in local server YYYY-MM-DD
+    const dateStr = body.date || new Date().toISOString().split("T")[0];
 
     let completedDays = [...habit.completedDays];
     const isAlreadyCompleted = completedDays.includes(dateStr);
@@ -35,7 +43,7 @@ export async function PATCH(
     // Calculate streak
     let streak = 0;
     const datesSet = new Set(completedDays);
-    let checkDate = new Date();
+    const checkDate = new Date();
 
     // If today is completed, trace backwards
     const todayStr = checkDate.toISOString().split("T")[0];

@@ -1,39 +1,46 @@
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = session.user.id;
+
     const { searchParams } = new URL(req.url);
     const timeRange = searchParams.get("timeRange") || "7days";
 
-    // 1. Fetch all items and habits
+    // 1. Fetch all items and habits belonging to user
     const items = await prisma.inboxItem.findMany({
+      where: { userId },
       include: { task: true }
     });
-    const habits = await prisma.habit.findMany();
+    const habits = await prisma.habit.findMany({
+      where: { userId }
+    });
     const areas = await prisma.area.findMany({
+      where: { userId },
       include: { projects: { include: { subProjects: true } } }
     });
 
     const areaMap = new Map(areas.map((a: any) => [a.id, a.name]));
-    const projectMap = new Map(
-      areas.flatMap((a: any) => a.projects).map((p: any) => [p.id, p.name])
-    );
 
     const resolvedItems = items.map((item: any) => ({
       ...item,
       area: item.areaId ? areaMap.get(item.areaId) : null,
-      project: item.projectId ? projectMap.get(item.projectId) : null,
     }));
 
     // 2. Area progress
     const areaProgress: Record<string, number> = {};
     const defaultAreas = ["Work", "Personal", "Education", "Side Projects"];
     const fallbackMap: Record<string, number> = {
-      Work: 72,
-      Personal: 45,
-      Education: 80,
-      "Side Projects": 35,
+      Work: 0,
+      Personal: 0,
+      Education: 0,
+      "Side Projects": 0,
     };
 
     for (const area of defaultAreas) {
@@ -42,7 +49,20 @@ export async function GET(req: Request) {
         const completed = areaTasks.filter((it: any) => it.task?.completed).length;
         areaProgress[area] = Math.round((completed / areaTasks.length) * 100);
       } else {
-        areaProgress[area] = fallbackMap[area] || 40;
+        areaProgress[area] = fallbackMap[area] || 0; // Starts clean/empty for new user
+      }
+    }
+
+    // Include user-defined areas in areaProgress
+    for (const area of areas) {
+      if (!defaultAreas.includes(area.name)) {
+        const areaTasks = resolvedItems.filter((it: any) => it.areaId === area.id && it.type === "Task");
+        if (areaTasks.length > 0) {
+          const completed = areaTasks.filter((it: any) => it.task?.completed).length;
+          areaProgress[area.name] = Math.round((completed / areaTasks.length) * 100);
+        } else {
+          areaProgress[area.name] = 0;
+        }
       }
     }
 
@@ -64,13 +84,10 @@ export async function GET(req: Request) {
             it.createdAt.toISOString().split("T")[0] === dStr)
       ).length;
 
-      const baseWave = Math.sin(i * 0.8) * 1.5 + 2;
-      const count = Math.max(0, Math.round(actualCount + baseWave));
-
       momentumData.push({
         dateStr: dStr,
         label: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-        count: count,
+        count: actualCount,
       });
     }
 
@@ -81,15 +98,12 @@ export async function GET(req: Request) {
     let trendText = "Stable";
     let trendColor = "text-neutral-500 dark:text-neutral-400 bg-neutral-50 dark:bg-neutral-800/30";
 
-    if (secondHalf > firstHalf + 2) {
+    if (secondHalf > firstHalf) {
       trendText = "Improving";
       trendColor = "text-emerald-500 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20";
-    } else if (secondHalf < firstHalf - 2) {
+    } else if (secondHalf < firstHalf) {
       trendText = "Slipping";
       trendColor = "text-rose-500 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/20";
-    } else if (secondHalf > 0 && firstHalf === 0) {
-      trendText = "Recovering";
-      trendColor = "text-amber-500 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20";
     }
 
     // 4. Heatmap data (completed habits count per date)
@@ -101,7 +115,7 @@ export async function GET(req: Request) {
     }
 
     // 5. Unassigned thoughts
-    const unassignedCount = resolvedItems.filter((it: any) => !it.assigned || !it.area).length;
+    const unassignedCount = resolvedItems.filter((it: any) => !it.assigned || !it.areaId).length;
 
     // 6. This week metrics
     const oneWeekAgo = new Date();
@@ -134,7 +148,7 @@ export async function GET(req: Request) {
       }
     }
     const habitCompletionRate =
-      totalScheduledHabits > 0 ? Math.round((completedHabitsCount / totalScheduledHabits) * 100) : 75;
+      totalScheduledHabits > 0 ? Math.round((completedHabitsCount / totalScheduledHabits) * 100) : 0;
 
     // 7. Active projects
     const projectsList: { name: string; pct: number; total: number }[] = [];

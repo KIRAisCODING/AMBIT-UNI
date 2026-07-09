@@ -1,8 +1,15 @@
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = session.user.id;
+
     const { searchParams } = new URL(req.url);
     const subProjectId = searchParams.get("subProjectId");
 
@@ -10,6 +17,7 @@ export async function GET(req: Request) {
     if (subProjectId) {
       items = await prisma.inboxItem.findMany({
         where: {
+          userId,
           subProjectId,
           assigned: true,
         },
@@ -19,6 +27,9 @@ export async function GET(req: Request) {
       });
     } else {
       items = await prisma.inboxItem.findMany({
+        where: {
+          userId,
+        },
         include: {
           task: true,
         },
@@ -28,9 +39,9 @@ export async function GET(req: Request) {
       });
     }
 
-    const areas = await prisma.area.findMany();
-    const projects = await prisma.project.findMany();
-    const subProjects = await prisma.subProject.findMany();
+    const areas = await prisma.area.findMany({ where: { userId } });
+    const projects = await prisma.project.findMany({ where: { userId } });
+    const subProjects = await prisma.subProject.findMany({ where: { userId } });
 
     const areaMap = new Map(areas.map((a: any) => [a.id, a.name]));
     const projectMap = new Map(projects.map((p: any) => [p.id, p.name]));
@@ -51,6 +62,12 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = session.user.id;
+
     const body = await req.json();
 
     let areaId = body.areaId || null;
@@ -60,7 +77,7 @@ export async function POST(req: Request) {
     // Resolve names to IDs if not provided
     if (!areaId && body.area) {
       const area = await prisma.area.findFirst({
-        where: { name: body.area },
+        where: { name: body.area, userId },
       });
       if (area) areaId = area.id;
     }
@@ -69,6 +86,7 @@ export async function POST(req: Request) {
       const project = await prisma.project.findFirst({
         where: {
           name: body.project,
+          userId,
           ...(areaId ? { areaId } : {}),
         },
       });
@@ -79,6 +97,7 @@ export async function POST(req: Request) {
       const subProject = await prisma.subProject.findFirst({
         where: {
           name: body.subProject,
+          userId,
           ...(projectId ? { projectId } : {}),
         },
       });
@@ -93,6 +112,7 @@ export async function POST(req: Request) {
         areaId,
         projectId,
         subProjectId,
+        userId,
       },
     });
 
@@ -102,6 +122,7 @@ export async function POST(req: Request) {
           inboxItemId: item.id,
           completed: false,
           deadline: body.deadline ? new Date(body.deadline) : null,
+          userId,
         },
       });
     }

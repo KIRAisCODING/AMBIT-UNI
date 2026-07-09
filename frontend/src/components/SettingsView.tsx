@@ -17,6 +17,13 @@ interface SettingsViewProps {
     calendarSync: boolean;
   };
   onUpdateSettings?: (updates: any) => void;
+  user?: {
+    name: string;
+    email: string;
+    initials: string;
+    image?: string;
+  } | null;
+  onLogout?: () => void;
 }
 
 export default function SettingsView({ 
@@ -25,7 +32,9 @@ export default function SettingsView({
   theme,
   setTheme,
   settings,
-  onUpdateSettings
+  onUpdateSettings,
+  user,
+  onLogout
 }: SettingsViewProps) {
   // Mock Settings States
   const [dailyReviewReminder, setDailyReviewReminder] = useState(settings?.dailyReviewReminder ?? true);
@@ -274,16 +283,24 @@ export default function SettingsView({
 
             <div className="space-y-4 pt-1">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-pill-active text-pill-active-text flex items-center justify-center font-bold text-sm">
-                  {userName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'SP'}
-                </div>
-                <div>
+                {user?.image ? (
+                  <img
+                    src={user.image}
+                    alt={userName}
+                    className="w-10 h-10 rounded-full object-cover border border-border"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-pill-active text-pill-active-text flex items-center justify-center font-bold text-sm">
+                    {user?.initials || userName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'SP'}
+                  </div>
+                )}
+                <div className="flex-grow min-w-0">
                   <input
                     type="text"
                     value={userName}
                     onChange={(e) => setUserName(e.target.value)}
                     onBlur={() => onUpdateSettings?.({ userName })}
-                    className="bg-transparent border-none focus:ring-0 p-0 text-sm font-bold text-textPrimary outline-none w-full"
+                    className="bg-transparent border-none focus:ring-0 p-0 text-sm font-bold text-textPrimary outline-none w-full truncate"
                     title="Edit profile name"
                   />
                   <input
@@ -291,11 +308,21 @@ export default function SettingsView({
                     value={userEmail}
                     onChange={(e) => setUserEmail(e.target.value)}
                     onBlur={() => onUpdateSettings?.({ userEmail })}
-                    className="bg-transparent border-none focus:ring-0 p-0 text-xs text-textSecondary outline-none w-full"
+                    className="bg-transparent border-none focus:ring-0 p-0 text-xs text-textSecondary outline-none w-full truncate"
                     title="Edit profile email"
+                    disabled
                   />
                 </div>
               </div>
+
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="w-full bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950/20 dark:text-red-300 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-center"
+                >
+                  Sign Out
+                </button>
+              )}
 
               <div className="space-y-2 bg-surfaceSecondary/50 border border-border/60 p-3.5 rounded-xl text-[11px] font-medium text-textPrimary">
                 <div className="flex justify-between">

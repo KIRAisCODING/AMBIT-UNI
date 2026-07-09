@@ -1,3 +1,4 @@
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
@@ -6,7 +7,21 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = session.user.id;
     const { id } = await params;
+
+    // Verify ownership
+    const existingHabit = await prisma.habit.findFirst({
+      where: { id, userId },
+    });
+    if (!existingHabit) {
+      return NextResponse.json({ error: "Not Found" }, { status: 404 });
+    }
+
     await prisma.habit.delete({
       where: { id },
     });
@@ -21,7 +36,21 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = session.user.id;
     const { id } = await params;
+
+    // Verify ownership
+    const existingHabit = await prisma.habit.findFirst({
+      where: { id, userId },
+    });
+    if (!existingHabit) {
+      return NextResponse.json({ error: "Not Found" }, { status: 404 });
+    }
+
     const body = await req.json();
 
     let areaId = body.areaId || undefined;
@@ -33,7 +62,7 @@ export async function PATCH(
         areaId = null;
       } else {
         const area = await prisma.area.findFirst({
-          where: { name: body.area },
+          where: { name: body.area, userId },
         });
         if (area) areaId = area.id;
       }
@@ -46,6 +75,7 @@ export async function PATCH(
         const project = await prisma.project.findFirst({
           where: {
             name: body.project,
+            userId,
             ...(areaId && areaId !== "null" ? { areaId } : {}),
           },
         });
@@ -60,6 +90,7 @@ export async function PATCH(
         const subProject = await prisma.subProject.findFirst({
           where: {
             name: body.subProject,
+            userId,
             ...(projectId && projectId !== "null" ? { projectId } : {}),
           },
         });

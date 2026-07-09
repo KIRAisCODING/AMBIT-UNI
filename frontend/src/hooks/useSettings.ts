@@ -20,49 +20,9 @@ export function useSettings() {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  // Authentication abstractions (prepared for Google OAuth)
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
-  const [user, setUser] = useState<{ name: string; email: string; initials: string }>({
-    name: 'Senior Product Designer',
-    email: 'architect@ambit.ai',
-    initials: 'SP',
-  });
-
-  useEffect(() => {
-    async function loadSettings() {
-      try {
-        const res = await fetch('/api/settings');
-        if (res.ok) {
-          const data = await res.json();
-          setSettings({
-            userName: data.userName,
-            userEmail: data.userEmail,
-            theme: data.theme as 'light' | 'dark',
-            dailyReviewReminder: data.dailyReviewReminder,
-            streakAlerts: data.streakAlerts,
-            calendarSync: data.calendarSync,
-          });
-          setUser({
-            name: data.userName,
-            email: data.userEmail,
-            initials: getInitials(data.userName),
-          });
-
-          // Sync theme on HTML root element directly on load
-          if (data.theme === 'dark') {
-            document.documentElement.classList.add('dark');
-          } else {
-            document.documentElement.classList.remove('dark');
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load settings:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    loadSettings();
-  }, []);
+  // Authentication state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<{ name: string; email: string; initials: string; image?: string } | null>(null);
 
   const getInitials = (name: string) => {
     return name
@@ -72,6 +32,57 @@ export function useSettings() {
       .substring(0, 2)
       .toUpperCase() || 'SP';
   };
+
+  useEffect(() => {
+    async function loadAuthAndSettings() {
+      try {
+        const sessionRes = await fetch('/api/auth/session');
+        if (sessionRes.ok) {
+          const session = await sessionRes.json().catch(() => null);
+          if (session && session.user) {
+            setUser({
+              name: session.user.name || 'Senior Product Designer',
+              email: session.user.email || 'architect@ambit.ai',
+              initials: getInitials(session.user.name || 'Senior Product Designer'),
+              image: session.user.image,
+            });
+            setIsAuthenticated(true);
+
+            // Now load settings from database
+            const settingsRes = await fetch('/api/settings');
+            if (settingsRes.ok) {
+              const data = await settingsRes.json();
+              setSettings({
+                userName: data.userName,
+                userEmail: data.userEmail,
+                theme: data.theme as 'light' | 'dark',
+                dailyReviewReminder: data.dailyReviewReminder,
+                streakAlerts: data.streakAlerts,
+                calendarSync: data.calendarSync,
+              });
+
+              // Sync theme on HTML root element directly on load
+              if (data.theme === 'dark') {
+                document.documentElement.classList.add('dark');
+              } else {
+                document.documentElement.classList.remove('dark');
+              }
+            }
+          } else {
+            setIsAuthenticated(false);
+            setUser(null);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load session or settings:', err);
+        setIsAuthenticated(false);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadAuthAndSettings();
+  }, []);
 
   const updateSettings = async (updates: Partial<UserSettings>) => {
     try {
@@ -91,11 +102,15 @@ export function useSettings() {
           calendarSync: data.calendarSync,
         };
         setSettings(newSettings);
-        setUser({
-          name: data.userName,
-          email: data.userEmail,
-          initials: getInitials(data.userName),
-        });
+        
+        if (user) {
+          setUser({
+            ...user,
+            name: data.userName,
+            email: data.userEmail,
+            initials: getInitials(data.userName),
+          });
+        }
 
         // Set theme on HTML root element directly
         if (updates.theme) {
@@ -124,14 +139,21 @@ export function useSettings() {
     }
   };
 
-  const login = async () => {
-    console.log('Redirecting to Google OAuth login...');
-    setIsAuthenticated(true);
+  const login = () => {
+    window.location.href = "/api/auth/signin/google";
   };
 
   const logout = async () => {
-    console.log('Logging out...');
+    setIsLoading(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
     setIsAuthenticated(false);
+    setUser(null);
+    setIsLoading(false);
+    window.location.href = '/';
   };
 
   return {

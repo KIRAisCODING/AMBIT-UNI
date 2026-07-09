@@ -1,10 +1,19 @@
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const items = await prisma.inboxItem.findMany({
-      where: { assigned: false },
+      where: {
+        userId: session.user.id,
+        assigned: false,
+      },
       orderBy: { createdAt: "desc" },
     });
 
@@ -16,6 +25,11 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
 
     let areaId = body.areaId || null;
@@ -24,7 +38,7 @@ export async function POST(req: Request) {
 
     if (!areaId && body.area) {
       const area = await prisma.area.findFirst({
-        where: { name: body.area },
+        where: { name: body.area, userId: session.user.id },
       });
       if (area) areaId = area.id;
     }
@@ -33,6 +47,7 @@ export async function POST(req: Request) {
       const project = await prisma.project.findFirst({
         where: {
           name: body.project,
+          userId: session.user.id,
           ...(areaId ? { areaId } : {}),
         },
       });
@@ -43,6 +58,7 @@ export async function POST(req: Request) {
       const subProject = await prisma.subProject.findFirst({
         where: {
           name: body.subProject,
+          userId: session.user.id,
           ...(projectId ? { projectId } : {}),
         },
       });
@@ -57,6 +73,7 @@ export async function POST(req: Request) {
         areaId,
         projectId,
         subProjectId,
+        userId: session.user.id,
       },
     });
 
@@ -65,6 +82,7 @@ export async function POST(req: Request) {
         data: {
           inboxItemId: item.id,
           completed: false,
+          userId: session.user.id,
         },
       });
     }

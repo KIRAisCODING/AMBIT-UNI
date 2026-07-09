@@ -1,3 +1,4 @@
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
@@ -6,8 +7,22 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const body = await req.json();
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id } = await params;
+
+    // Verify ownership of the inbox item
+    const existingInboxItem = await prisma.inboxItem.findFirst({
+      where: { id, userId: session.user.id },
+    });
+    if (!existingInboxItem) {
+      return NextResponse.json({ error: "Not Found" }, { status: 404 });
+    }
+
+    const body = await req.json();
 
     let areaId = body.areaId || null;
     let projectId = body.projectId || null;
@@ -15,7 +30,7 @@ export async function PATCH(
 
     if (!areaId && body.area) {
       const area = await prisma.area.findFirst({
-        where: { name: body.area },
+        where: { name: body.area, userId: session.user.id },
       });
       if (area) areaId = area.id;
     }
@@ -24,6 +39,7 @@ export async function PATCH(
       const project = await prisma.project.findFirst({
         where: {
           name: body.project,
+          userId: session.user.id,
           ...(areaId ? { areaId } : {}),
         },
       });
@@ -34,6 +50,7 @@ export async function PATCH(
       const subProject = await prisma.subProject.findFirst({
         where: {
           name: body.subProject,
+          userId: session.user.id,
           ...(projectId ? { projectId } : {}),
         },
       });
@@ -56,6 +73,7 @@ export async function PATCH(
       create: {
         inboxItemId: id,
         completed: false,
+        userId: session.user.id,
       },
     });
 

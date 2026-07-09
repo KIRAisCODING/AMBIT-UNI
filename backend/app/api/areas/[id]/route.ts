@@ -1,3 +1,4 @@
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteArea } from "@/lib/deleteHierarchy";
 import { NextResponse } from "next/server";
@@ -12,7 +13,21 @@ export async function PATCH(
     }>;
   }
 ) {
+  const session = await auth();
+  if (!session || !session.user || !session.user.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await params;
+
+  // Verify ownership
+  const existingArea = await prisma.area.findFirst({
+    where: { id, userId: session.user.id },
+  });
+  if (!existingArea) {
+    return NextResponse.json({ error: "Not Found" }, { status: 404 });
+  }
+
   const body = await req.json();
 
   const area = await prisma.area.update({
@@ -37,7 +52,21 @@ export async function DELETE(
     }>;
   }
 ) {
+  const session = await auth();
+  if (!session || !session.user || !session.user.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await params;
+
+  // Verify ownership
+  const existingArea = await prisma.area.findFirst({
+    where: { id, userId: session.user.id },
+  });
+  if (!existingArea) {
+    return NextResponse.json({ error: "Not Found" }, { status: 404 });
+  }
+
   const url = new URL(req.url);
   const modeParam = url.searchParams.get("mode");
   const mode = modeParam === "unassign" ? "unassign" : "delete";

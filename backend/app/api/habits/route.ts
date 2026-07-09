@@ -1,15 +1,23 @@
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = session.user.id;
+
     const habits = await prisma.habit.findMany({
+      where: { userId },
       orderBy: { createdAt: "desc" },
     });
 
-    const areas = await prisma.area.findMany();
-    const projects = await prisma.project.findMany();
-    const subProjects = await prisma.subProject.findMany();
+    const areas = await prisma.area.findMany({ where: { userId } });
+    const projects = await prisma.project.findMany({ where: { userId } });
+    const subProjects = await prisma.subProject.findMany({ where: { userId } });
 
     const areaMap = new Map(areas.map((a: any) => [a.id, a.name]));
     const projectMap = new Map(projects.map((p: any) => [p.id, p.name]));
@@ -30,6 +38,12 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const session = await auth();
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = session.user.id;
+
     const body = await req.json();
 
     let areaId = body.areaId || null;
@@ -38,7 +52,7 @@ export async function POST(req: Request) {
 
     if (!areaId && body.area) {
       const area = await prisma.area.findFirst({
-        where: { name: body.area },
+        where: { name: body.area, userId },
       });
       if (area) areaId = area.id;
     }
@@ -47,6 +61,7 @@ export async function POST(req: Request) {
       const project = await prisma.project.findFirst({
         where: {
           name: body.project,
+          userId,
           ...(areaId ? { areaId } : {}),
         },
       });
@@ -57,6 +72,7 @@ export async function POST(req: Request) {
       const subProject = await prisma.subProject.findFirst({
         where: {
           name: body.subProject,
+          userId,
           ...(projectId ? { projectId } : {}),
         },
       });
@@ -71,6 +87,7 @@ export async function POST(req: Request) {
         areaId,
         projectId,
         subProjectId,
+        userId,
       },
     });
 

@@ -21,6 +21,7 @@ import AnalyticsView from './components/AnalyticsView';
 import SettingsView from './components/SettingsView';
 import BrainChat from './components/BrainChat';
 import WorkspaceView from './components/WorkspaceView';
+import LoginPage from './components/LoginPage';
 
 export default function App() {
   // Navigation tabs state
@@ -34,7 +35,7 @@ export default function App() {
   const [chatOpen, setChatOpen] = useState(false);
 
   // Hook integrations
-  const { settings, updateSettings, resetData } = useSettings();
+  const { settings, updateSettings, resetData, isAuthenticated, isLoading, logout, user } = useSettings();
   const { hierarchy, updateHierarchy } = useAreas();
   const { items, createTask, updateTask, deleteTask, assignTask, reorderTasks, refreshTasks } = useTasks();
   const { habits, addHabit, toggleHabitDay, deleteHabit, updateHabit } = useHabits();
@@ -46,6 +47,18 @@ export default function App() {
   const setTheme = (t: 'light' | 'dark') => {
     updateSettings({ theme: t });
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background text-textPrimary flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-textSecondary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
 
   // 1. Capture new concepts (with Gemini Integration!)
   const handleCaptureItem = async (
@@ -230,6 +243,8 @@ export default function App() {
             setTheme={setTheme}
             settings={settings}
             onUpdateSettings={updateSettings}
+            user={user}
+            onLogout={logout}
           />
         );
       default:
