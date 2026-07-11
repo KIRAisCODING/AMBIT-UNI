@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  ChevronDown, ArrowUp, X, Sparkles, AlertCircle 
+import {
+  ChevronDown, ArrowUp, X, Sparkles, AlertCircle
 } from 'lucide-react';
 import { ItemType, BrainItem, AreaHierarchy } from '../types';
 
@@ -57,7 +57,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
 
   // Helper lists derived dynamically from hierarchy
   const areasList = hierarchy.map(a => a.name);
-  
+
   const currentAreaNode = hierarchy.find(a => a.name === area);
   const projectsList = currentAreaNode ? currentAreaNode.projects.map(p => p.name) : [];
 
@@ -112,7 +112,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
       setSubProject(value);
       addTag(value);
     }
-    
+
     setTags(newTags);
     setActiveMenuType(null);
   };
@@ -262,25 +262,23 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
           <div className="flex items-center gap-2 flex-wrap">
             {/* Assign Now vs Later Toggle */}
             <div className="flex bg-pill/90 backdrop-blur-sm rounded-full p-0.5 shadow-sm border border-border h-[35px] items-center">
-              <button 
+              <button
                 type="button"
                 onClick={() => setAssignment('now')}
-                className={`px-3.5 py-1 text-xs font-semibold rounded-full transition-all duration-200 cursor-pointer h-[31px] flex items-center justify-center ${
-                  assignment === 'now' 
-                    ? 'bg-pill-active text-pill-active-text shadow-sm' 
+                className={`px-3.5 py-1 text-xs font-semibold rounded-full transition-all duration-200 cursor-pointer h-[31px] flex items-center justify-center ${assignment === 'now'
+                    ? 'bg-pill-active text-pill-active-text shadow-sm'
                     : 'text-textSecondary hover:text-textPrimary'
-                }`}
+                  }`}
               >
                 Assign now
               </button>
-              <button 
+              <button
                 type="button"
                 onClick={() => setAssignment('later')}
-                className={`px-3.5 py-1 text-xs font-semibold rounded-full transition-all duration-200 cursor-pointer h-[31px] flex items-center justify-center ${
-                  assignment === 'later' 
-                    ? 'bg-pill-active text-pill-active-text shadow-sm' 
+                className={`px-3.5 py-1 text-xs font-semibold rounded-full transition-all duration-200 cursor-pointer h-[31px] flex items-center justify-center ${assignment === 'later'
+                    ? 'bg-pill-active text-pill-active-text shadow-sm'
                     : 'text-textSecondary hover:text-textPrimary'
-                }`}
+                  }`}
               >
                 Assign later
               </button>
@@ -288,7 +286,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
 
             {/* Type Selector Dropdown */}
             <div className="relative">
-              <button 
+              <button
                 type="button"
                 onClick={() => setShowTypeDropdown(!showTypeDropdown)}
                 className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-pill/90 backdrop-blur-sm rounded-full text-xs font-semibold text-textSecondary hover:bg-pill transition-colors shadow-sm cursor-pointer h-[31px]"
@@ -296,7 +294,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                 <span>{type}</span>
                 <ChevronDown size={20} className="text-textSecondary" />
               </button>
-              
+
               {showTypeDropdown && (
                 <div className="absolute left-0 bottom-10 mb-1 bg-surface border border-border shadow-xl rounded-xl p-1 z-50 w-28">
                   {(['Task', 'Idea', 'Note', 'Journal', 'Habit'] as ItemType[]).map((t) => (
@@ -320,11 +318,10 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
             <button
               type="button"
               onClick={() => setAiEnabled(!aiEnabled)}
-              className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors shadow-sm cursor-pointer h-[31px] ${
-                aiEnabled 
-                  ? 'bg-pill-active text-pill-active-text hover:opacity-90' 
+              className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors shadow-sm cursor-pointer h-[31px] ${aiEnabled
+                  ? 'bg-pill-active text-pill-active-text hover:opacity-90'
                   : 'bg-pill text-textSecondary hover:opacity-90'
-              }`}
+                }`}
               title="Toggle Gemini Auto-Tag & Auto-Categorization"
             >
               <Sparkles size={20} className={aiEnabled ? 'text-yellow-400' : 'text-textSecondary'} />
@@ -336,30 +333,27 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
           {assignment === 'now' && (
             <div className="flex gap-1.5 overflow-x-auto hide-scrollbar">
               <div className="flex bg-pill/90 backdrop-blur-sm rounded-full p-0.5 shadow-sm border border-border h-[35px] items-center">
-                <button 
+                <button
                   type="button"
                   onClick={() => handleOpenMenu('Area')}
-                  className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer h-[31px] flex items-center justify-center ${
-                    area ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
-                  }`}
+                  className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer h-[31px] flex items-center justify-center ${area ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
+                    }`}
                 >
                   Area
                 </button>
-                <button 
+                <button
                   type="button"
                   onClick={() => handleOpenMenu('Project')}
-                  className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer h-[31px] flex items-center justify-center ${
-                    project ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
-                  }`}
+                  className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer h-[31px] flex items-center justify-center ${project ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
+                    }`}
                 >
                   Project
                 </button>
-                <button 
+                <button
                   type="button"
                   onClick={() => handleOpenMenu('SubProject')}
-                  className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer h-[31px] flex items-center justify-center ${
-                    subProject ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
-                  }`}
+                  className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer h-[31px] flex items-center justify-center ${subProject ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
+                    }`}
                 >
                   SubProject
                 </button>
@@ -370,13 +364,13 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
       </div>
 
       {/* Main Input Container */}
-      <form 
+      <form
         onSubmit={handleSubmit}
         className="bg-surface rounded-[24px] shadow-2xl p-2 transition-all focus-within:ring-2 focus-within:ring-accent border border-border"
       >
         <div className="relative flex flex-col">
           {/* Main Textarea */}
-          <textarea 
+          <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={(e) => {
@@ -387,8 +381,8 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
             }}
             className="w-full bg-transparent border-none focus:ring-0 text-base md:text-lg p-4 pb-2 resize-none placeholder:text-textMuted/60 min-h-[96px] text-textPrimary outline-none"
             placeholder={
-              isAnalyzing 
-                ? "Gemini is analyzing your thought..." 
+              isAnalyzing
+                ? "Gemini is analyzing your thought..."
                 : `Capture a ${type.toLowerCase()} idea... (Shift+Enter for new line)`
             }
             rows={3}
@@ -400,13 +394,13 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
             {/* Tags Container */}
             <div className="flex flex-wrap items-center gap-1.5 max-w-[80%]">
               {tags.map((tag) => (
-                <div 
+                <div
                   key={tag}
                   className="flex items-center gap-1 px-2.5 py-1 bg-surfaceSecondary hover:opacity-90 rounded-lg text-xs text-textSecondary border border-border transition-colors animate-fade-in"
                 >
                   <span className="text-[11px] font-medium">{tag}</span>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => handleRemoveTag(tag)}
                     className="hover:bg-red-100 dark:hover:bg-red-950/20 rounded-full p-0.5 cursor-pointer"
                   >
@@ -414,9 +408,9 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                   </button>
                 </div>
               ))}
-              
+
               {/* Inline Tag Input */}
-              <input 
+              <input
                 type="text"
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
@@ -427,12 +421,11 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
             </div>
 
             {/* Submit Arrow Button */}
-            <button 
+            <button
               type="submit"
               disabled={!content.trim() || isAnalyzing}
-              className={`w-11 h-11 bg-pill-active text-pill-active-text rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 shrink-0 cursor-pointer ${
-                (!content.trim() || isAnalyzing) ? 'opacity-40 cursor-not-allowed scale-100' : ''
-              }`}
+              className={`w-11 h-11 bg-pill-active text-pill-active-text rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 shrink-0 cursor-pointer ${(!content.trim() || isAnalyzing) ? 'opacity-40 cursor-not-allowed scale-100' : ''
+                }`}
             >
               {isAnalyzing ? (
                 <Sparkles size={20} className="animate-pulse text-yellow-400" />
@@ -448,8 +441,8 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
       {activeMenuType && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           {/* Overlay */}
-          <div 
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm" 
+          <div
+
             onClick={() => {
               setActiveMenuType(null);
               setNewItemName('');
@@ -462,7 +455,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
               <h3 className="text-xs uppercase tracking-widest font-bold text-textSecondary">
                 Select {activeMenuType}
               </h3>
-              <button 
+              <button
                 type="button"
                 onClick={() => {
                   setActiveMenuType(null);
@@ -495,9 +488,9 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                   )}
                   <form onSubmit={handleCreateAreaSubmit} className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
                     <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        placeholder="New Area Name..." 
+                      <input
+                        type="text"
+                        placeholder="New Area Name..."
                         value={newItemName}
                         onChange={(e) => setNewItemName(e.target.value)}
                         className="flex-1 bg-surfaceSecondary border border-border text-xs px-3 py-2 rounded-xl outline-none text-textPrimary focus:ring-1 focus:ring-accent"
@@ -536,9 +529,9 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                       )}
                       <form onSubmit={handleCreateProjectSubmit} className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
                         <div className="flex gap-2">
-                          <input 
-                            type="text" 
-                            placeholder="New Project Name..." 
+                          <input
+                            type="text"
+                            placeholder="New Project Name..."
                             value={newItemName}
                             onChange={(e) => setNewItemName(e.target.value)}
                             className="flex-1 bg-surfaceSecondary border border-border text-xs px-3 py-2 rounded-xl outline-none text-textPrimary focus:ring-1 focus:ring-accent"
@@ -579,9 +572,9 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                       )}
                       <form onSubmit={handleCreateSubProjectSubmit} className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
                         <div className="flex gap-2">
-                          <input 
-                            type="text" 
-                            placeholder="New Subproject Name..." 
+                          <input
+                            type="text"
+                            placeholder="New Subproject Name..."
                             value={newItemName}
                             onChange={(e) => setNewItemName(e.target.value)}
                             className="flex-1 bg-surfaceSecondary border border-border text-xs px-3 py-2 rounded-xl outline-none text-textPrimary focus:ring-1 focus:ring-accent"
