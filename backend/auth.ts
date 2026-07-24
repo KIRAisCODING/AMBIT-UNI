@@ -4,6 +4,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
   secret: process.env.AUTH_SECRET,
   adapter: PrismaAdapter(prisma),
   providers: [
@@ -29,13 +30,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
     async redirect({ url, baseUrl }) {
-      if (url.startsWith("http://localhost:3000")) {
-        return url;
-      }
       if (url.startsWith("/")) {
         return `${baseUrl}${url}`;
       }
-      return "http://localhost:3000/";
+      try {
+        const urlObj = new URL(url);
+        const baseObj = new URL(baseUrl);
+        if (urlObj.origin === baseObj.origin || urlObj.hostname === "localhost" || urlObj.hostname === "127.0.0.1") {
+          return url;
+        }
+      } catch (_) {}
+      return baseUrl;
     },
   },
   events: {
