@@ -61,6 +61,33 @@ app.post("/api/brain/analyze", async (req, res) => {
       return res.status(400).json({ error: "Content must be a non-empty string." });
     }
 
+    const apiKey = process.env.GEMINI_API_KEY;
+    const isMockGemini = !apiKey || 
+                         apiKey === "your-gemini-api-key" || 
+                         apiKey === "MY_GEMINI_API_KEY" || 
+                         apiKey === "MOCK_KEY";
+
+    if (isMockGemini) {
+      const summary = content.split(" ").slice(0, 10).join(" ") + (content.split(" ").length > 10 ? "..." : "");
+      const tags = ["captured"];
+      const lowerContent = content.toLowerCase();
+      if (lowerContent.includes("work") || lowerContent.includes("job") || lowerContent.includes("meeting")) tags.push("work");
+      if (lowerContent.includes("personal") || lowerContent.includes("health") || lowerContent.includes("buy")) tags.push("personal");
+      if (lowerContent.includes("study") || lowerContent.includes("learn") || lowerContent.includes("read")) tags.push("education");
+      
+      const suggestedArea = tags.includes("work") 
+        ? "Work" 
+        : (tags.includes("education") ? "Education" : "Personal");
+
+      return res.json({
+        smartSummary: summary,
+        suggestedTags: tags.slice(0, 3),
+        suggestedArea,
+        suggestedProject: null,
+        suggestedSubProject: null
+      });
+    }
+
     const ai = getGeminiClient();
     const model = "gemini-3.5-flash";
 
@@ -134,6 +161,34 @@ app.post("/api/brain/chat", async (req, res) => {
     const { messages, items } = req.body;
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: "Messages array is required." });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    const isMockGemini = !apiKey || 
+                         apiKey === "your-gemini-api-key" || 
+                         apiKey === "MY_GEMINI_API_KEY" || 
+                         apiKey === "MOCK_KEY";
+
+    if (isMockGemini) {
+      const lastUserMessage = messages[messages.length - 1]?.text || "";
+      const lowerMessage = lastUserMessage.toLowerCase();
+      let responseText = "Hello! I am AMBIT, your external brain (running in mock/offline mode because no Gemini API key is configured).\n\n";
+
+      if (lowerMessage.includes("task") || lowerMessage.includes("todo") || lowerMessage.includes("item")) {
+        const pendingTasks = items && Array.isArray(items) 
+          ? items.filter((it: any) => !it.completed) 
+          : [];
+        if (pendingTasks.length > 0) {
+          responseText += "Here are your pending tasks:\n" + pendingTasks.map((it: any) => `- **${it.content}** (${it.area || 'No Area'})`).join('\n');
+        } else {
+          responseText += "You don't have any pending tasks in your brain right now. Try capturing some ideas or tasks!";
+        }
+      } else if (lowerMessage.includes("hello") || lowerMessage.includes("hi")) {
+        responseText += "Hello! How can I assist you with your captured thoughts and workspace today?";
+      } else {
+        responseText += `I'm ready to help you search or organize your workspace. You asked: "${lastUserMessage}". Try asking about your tasks or capture a new idea!`;
+      }
+      return res.json({ text: responseText });
     }
 
     const ai = getGeminiClient();

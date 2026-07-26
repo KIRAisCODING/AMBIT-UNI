@@ -31,6 +31,48 @@ export default function LoginPage() {
     }
   };
 
+  const handleGuestLogin = async () => {
+    try {
+      // 1. Fetch CSRF token
+      const res = await fetch("/api/auth/csrf");
+      const { csrfToken } = await res.json();
+
+      // 2. Dynamically create form and submit it to credentials sign-in
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = "/api/auth/signin/credentials";
+
+      const csrfInput = document.createElement("input");
+      csrfInput.type = "hidden";
+      csrfInput.name = "csrfToken";
+      csrfInput.value = csrfToken;
+      form.appendChild(csrfInput);
+
+      const callbackInput = document.createElement("input");
+      callbackInput.type = "hidden";
+      callbackInput.name = "callbackUrl";
+      callbackInput.value = window.location.origin + "/";
+      form.appendChild(callbackInput);
+
+      const emailInput = document.createElement("input");
+      emailInput.type = "hidden";
+      emailInput.name = "email";
+      emailInput.value = "guest@ambit.ai";
+      form.appendChild(emailInput);
+
+      const nameInput = document.createElement("input");
+      nameInput.type = "hidden";
+      nameInput.name = "name";
+      nameInput.value = "Guest User";
+      form.appendChild(nameInput);
+
+      document.body.appendChild(form);
+      form.submit();
+    } catch (err) {
+      console.error("Failed to sign in as guest:", err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-textPrimary flex flex-col items-center justify-center p-6 transition-colors duration-300">
       {/* Outer Card Container */}
@@ -79,6 +121,18 @@ export default function LoginPage() {
             />
           </svg>
           <span>Continue with Google</span>
+        </button>
+
+        {/* Continue as Guest CTA */}
+        <button
+          onClick={handleGuestLogin}
+          className="w-full flex items-center justify-center gap-3 bg-surfaceSecondary text-textPrimary border border-border font-bold text-xs py-3.5 px-6 rounded-2xl hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer shadow-sm mt-3"
+        >
+          {/* Custom guest icon */}
+          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          <span>Continue as Guest</span>
         </button>
 
         {/* Small Footer */}
