@@ -225,6 +225,7 @@ export async function POST(req: Request) {
           inboxItemId: item5.id,
           deadline: new Date(Date.now() - 24 * 3600000), // Yesterday
           completed: true,
+          completedAt: new Date(Date.now() - 24 * 3600000), // Yesterday
           userId,
         },
       });

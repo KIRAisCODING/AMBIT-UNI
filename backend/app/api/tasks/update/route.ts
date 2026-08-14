@@ -21,6 +21,15 @@ export async function PATCH(
     return NextResponse.json({ error: "Not Found" }, { status: 404 });
   }
 
+  const existingTask = await prisma.task.findUnique({
+    where: { inboxItemId: body.inboxItemId },
+  });
+
+  let completedAt = null;
+  if (body.completed) {
+    completedAt = existingTask?.completed ? existingTask.completedAt : new Date();
+  }
+
   const task = await prisma.task.upsert({
     where: {
       inboxItemId: body.inboxItemId,
@@ -29,12 +38,14 @@ export async function PATCH(
       description: body.description,
       deadline: body.deadline ? new Date(body.deadline) : null,
       completed: body.completed,
+      completedAt,
     },
     create: {
       inboxItemId: body.inboxItemId,
       description: body.description,
       deadline: body.deadline ? new Date(body.deadline) : null,
       completed: body.completed,
+      completedAt,
       userId,
     },
   });

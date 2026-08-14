@@ -114,6 +114,7 @@ model Task {
   description  String?
   deadline     DateTime?
   completed    Boolean   @default(false)
+  completedAt  DateTime?
   inboxItem    InboxItem @relation(fields: [inboxItemId], references: [id], onDelete: Cascade)
 }
 

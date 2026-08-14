@@ -18,6 +18,16 @@ interface SidebarProps {
   onOpenChat: () => void;
 }
 
+const safeConfirm = (message: string): boolean => {
+  try {
+    return window.confirm(message);
+  } catch (err) {
+    console.warn("confirm() blocked or failed, defaulting to true:", err);
+    return true;
+  }
+};
+
+
 export default function Sidebar({ 
   activeTab, 
   setActiveTab, 
@@ -146,7 +156,7 @@ export default function Sidebar({
 
   const handleDeleteArea = (e: React.MouseEvent, areaName: string) => {
     e.stopPropagation();
-    if (!confirm(`Are you sure you want to delete the Area "${areaName}" and all its subfolders?`)) return;
+    if (!safeConfirm(`Are you sure you want to delete the Area "${areaName}" and all its subfolders?`)) return;
 
     const updated = hierarchy.filter(a => a.name !== areaName);
     onUpdateHierarchy(updated);
@@ -158,7 +168,7 @@ export default function Sidebar({
 
   const handleDeleteProject = (e: React.MouseEvent, areaName: string, projectName: string) => {
     e.stopPropagation();
-    if (!confirm(`Are you sure you want to delete the Project "${projectName}"?`)) return;
+    if (!safeConfirm(`Are you sure you want to delete the Project "${projectName}"?`)) return;
 
     const updated = hierarchy.map(a => {
       if (a.name === areaName) {
@@ -178,7 +188,7 @@ export default function Sidebar({
 
   const handleDeleteSubProject = (e: React.MouseEvent, areaName: string, projectName: string, subProjectName: string) => {
     e.stopPropagation();
-    if (!confirm(`Are you sure you want to delete the SubProject "${subProjectName}"?`)) return;
+    if (!safeConfirm(`Are you sure you want to delete the SubProject "${subProjectName}"?`)) return;
 
     const updated = hierarchy.map(a => {
       if (a.name === areaName) {

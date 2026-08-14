@@ -2,6 +2,13 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
+function toLocalDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export async function GET(req: Request) {
   try {
     const session = await auth();
@@ -74,14 +81,14 @@ export async function GET(req: Request) {
     for (let i = daysCount - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(today.getDate() - i);
-      const dStr = d.toISOString().split("T")[0];
+      const dStr = toLocalDateString(d);
 
       const actualCount = resolvedItems.filter(
         (it: any) =>
           it.type === "Task" &&
           it.task?.completed &&
-          (it.task?.deadline?.toISOString().startsWith(dStr) ||
-            it.createdAt.toISOString().split("T")[0] === dStr)
+          it.task?.completedAt &&
+          toLocalDateString(new Date(it.task.completedAt)) === dStr
       ).length;
 
       momentumData.push({
@@ -122,7 +129,11 @@ export async function GET(req: Request) {
     oneWeekAgo.setDate(today.getDate() - 7);
 
     const completedThisWeek = resolvedItems.filter(
-      (it: any) => it.type === "Task" && it.task?.completed && it.createdAt >= oneWeekAgo
+      (it: any) =>
+        it.type === "Task" &&
+        it.task?.completed &&
+        it.task?.completedAt &&
+        new Date(it.task.completedAt) >= oneWeekAgo
     ).length;
 
     const createdThisWeek = resolvedItems.filter((it: any) => it.createdAt >= oneWeekAgo).length;

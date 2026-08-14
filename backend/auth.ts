@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import Credentials from "next-auth/providers/credentials";
+
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 
@@ -13,33 +13,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientId: process.env.AUTH_GOOGLE_ID,
       clientSecret: process.env.AUTH_GOOGLE_SECRET,
     }),
-    Credentials({
-      id: "credentials",
-      name: "Guest Login",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        name: { label: "Name", type: "text" },
-      },
-      async authorize(credentials) {
-        const email = (credentials?.email as string) || "guest@ambit.ai";
-        const name = (credentials?.name as string) || "Guest User";
 
-        let user = await prisma.user.findUnique({
-          where: { email },
-        });
-
-        if (!user) {
-          user = await prisma.user.create({
-            data: {
-              email,
-              name,
-            },
-          });
-        }
-
-        return user;
-      },
-    }),
   ],
   session: {
     strategy: "jwt",

@@ -13,6 +13,16 @@ interface HabitsViewProps {
   hierarchy: AreaHierarchy[];
 }
 
+const safeConfirm = (message: string): boolean => {
+  try {
+    return window.confirm(message);
+  } catch (err) {
+    console.warn("confirm() blocked or failed, defaulting to true:", err);
+    return true;
+  }
+};
+
+
 export default function HabitsView({ 
   habits, 
   onAddHabit, 
@@ -625,7 +635,7 @@ export default function HabitsView({
             <div className="pt-4 border-t border-border flex items-center justify-between">
               <button
                 onClick={() => {
-                  if (confirm(`Are you sure you want to delete ${selectedHabit.name}?`)) {
+                  if (safeConfirm(`Are you sure you want to delete ${selectedHabit.name}?`)) {
                     onDeleteHabit(selectedHabit.id);
                     setSelectedHabit(null);
                   }

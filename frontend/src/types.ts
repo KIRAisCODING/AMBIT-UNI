@@ -13,6 +13,7 @@ export interface BrainItem {
   tags: string[];
   createdAt: string;
   completed?: boolean;
+  completedAt?: string;
   scheduledDate?: string; // YYYY-MM-DD format
   smartSummary?: string;
   categorySuggestion?: string;

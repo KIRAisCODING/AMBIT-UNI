@@ -33,12 +33,8 @@ export default function AnalyticsView({
   
   const { analyticsData } = useAnalytics(timeRange);
   
-  // Custom interactive state for simulated blockers if there are no real incomplete tasks
-  const [simulatedBlockers, setSimulatedBlockers] = useState([
-    { id: 'sim-block-1', content: 'Refactor database connection pooling for high-concurrency', project: 'Backend' },
-    { id: 'sim-block-2', content: 'Design Figma layout guidelines for stats dashboard', project: 'Frontend' },
-    { id: 'sim-block-3', content: 'Set up automated tests for Auth middleware flow', project: 'Backend' }
-  ]);
+  // Custom interactive state for real blockers (we do not use simulated blockers anymore)
+  const [simulatedBlockers, setSimulatedBlockers] = useState<any[]>([]);
 
   // Handle simulated blocker complete
   const handleSimulatedComplete = (id: string) => {
@@ -56,14 +52,7 @@ export default function AnalyticsView({
     if (analyticsData?.areaProgress && areaName in analyticsData.areaProgress) {
       return analyticsData.areaProgress[areaName];
     }
-    // High-fidelity fallbacks to make the dashboard look stunning and seeded initially
-    const fallbackMap: Record<string, number> = {
-      'Work': 72,
-      'Personal': 45,
-      'Education': 80,
-      'Side Projects': 35
-    };
-    return fallbackMap[areaName] || 40;
+    return 0;
   };
 
   // CARD 2: MOMENTUM CALCULATIONS
@@ -78,21 +67,17 @@ export default function AnalyticsView({
       d.setDate(today.getDate() - i);
       const dStr = d.toISOString().split('T')[0];
 
-      // Count actual completed tasks on this date (by scheduledDate or createdAt)
+      // Count actual completed tasks on this date (by completedAt)
       const actualCount = items.filter(it => 
         it.type === 'Task' && 
         it.completed && 
-        (it.scheduledDate === dStr || it.createdAt.startsWith(dStr))
+        it.completedAt === dStr
       ).length;
-
-      // Seed a beautiful base wave for visual elegance and flow, combined with real data
-      const baseWave = Math.sin(i * 0.8) * 1.5 + 2;
-      const count = Math.max(0, Math.round(actualCount + baseWave));
 
       data.push({
         dateStr: dStr,
         label: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-        count: count
+        count: actualCount
       });
     }
     return data;
@@ -163,21 +148,7 @@ export default function AnalyticsView({
       });
     });
 
-    // Seed defaults if hierarchy is empty or has no tasks
-    const fallbackProjects = [
-      { name: 'Frontend', pct: 72, total: 12 },
-      { name: 'Backend', pct: 34, total: 8 },
-      { name: 'Hackathon', pct: 85, total: 5 }
-    ];
-
-    const combined = [...projectsList.filter(p => p.total > 0)];
-    fallbackProjects.forEach(fallback => {
-      if (combined.length < 3 && !combined.some(p => p.name.toLowerCase() === fallback.name.toLowerCase())) {
-        combined.push(fallback);
-      }
-    });
-
-    return combined.slice(0, 3);
+    return projectsList.filter(p => p.total > 0).slice(0, 3);
   };
 
   const activeProjects = analyticsData?.activeProjects || getActiveProjects();
@@ -191,26 +162,21 @@ export default function AnalyticsView({
       const sorted = [...candidates].sort((a, b) => a.pct - b.pct);
       return sorted[0];
     }
-    return { name: 'Backend', pct: 34 };
+    return null;
   };
 
   const stuckProject = getStuckProject();
 
   // Get real blocking tasks from items inside this project
   const getBlockingTasks = () => {
+    if (!stuckProject) return [];
     const realTasks = items.filter(it => 
       it.project?.toLowerCase() === stuckProject.name.toLowerCase() && 
       it.type === 'Task' && 
       !it.completed
     ).map(t => ({ id: t.id, content: t.content, isReal: true }));
 
-    if (realTasks.length > 0) return realTasks.slice(0, 3);
-
-    // Combine or fallback to high-fidelity simulated tasks matching stuckProject name
-    return simulatedBlockers
-      .filter(b => b.project.toLowerCase() === stuckProject.name.toLowerCase() || stuckProject.name === 'Backend')
-      .map(b => ({ id: b.id, content: b.content, isReal: false }))
-      .slice(0, 3);
+    return realTasks.slice(0, 3);
   };
 
   const blockingTasks = getBlockingTasks();
@@ -294,24 +260,25 @@ export default function AnalyticsView({
     const completedThisWeek = items.filter(it => 
       it.type === 'Task' && 
       it.completed && 
-      new Date(it.createdAt) >= oneWeekAgo
+      it.completedAt &&
+      new Date(it.completedAt) >= oneWeekAgo
     ).length;
 
     // Most and Least Active Areas
     const areaActivity: Record<string, number> = {};
     activeAreas.forEach(a => { areaActivity[a] = 0; });
     
-    items.filter(it => new Date(it.createdAt) >= oneWeekAgo).forEach(it => {
+    items.filter(it => it.completed && it.completedAt && new Date(it.completedAt) >= oneWeekAgo).forEach(it => {
       if (it.area && it.area in areaActivity) {
         areaActivity[it.area]++;
       }
     });
 
     const sortedAreas = Object.entries(areaActivity).sort((a, b) => b[1] - a[1]);
-    const mostActiveArea = sortedAreas[0]?.[1] > 0 ? sortedAreas[0][0] : 'Work';
+    const mostActiveArea = sortedAreas[0]?.[1] > 0 ? sortedAreas[0][0] : 'None';
     const leastActiveArea = sortedAreas[sortedAreas.length - 1]?.[1] === 0 || sortedAreas.length > 1 
-      ? sortedAreas[sortedAreas.length - 1]?.[0] || 'Personal' 
-      : 'Personal';
+      ? sortedAreas[sortedAreas.length - 1]?.[0] || 'None' 
+      : 'None';
 
     // Habit consistency this week
     const totalPossibleHabits = habits.length * 7;
@@ -326,10 +293,10 @@ export default function AnalyticsView({
 
     const habitConsistency = totalPossibleHabits > 0 
       ? Math.round((completedHabitCount / totalPossibleHabits) * 100) 
-      : 81; // High fidelity default
+      : 0;
 
     return {
-      completedTasks: completedThisWeek > 0 ? completedThisWeek : 17,
+      completedTasks: completedThisWeek,
       mostActiveArea,
       leastActiveArea,
       habitConsistency
@@ -350,7 +317,7 @@ export default function AnalyticsView({
 
   // CARD 8: ATTENTION REQUIRED CALCULATIONS
   const getAttentionRequiredAlerts = () => {
-    const alerts = [];
+    const alerts: { type: string; title: string; desc: string; days: number; area: string }[] = [];
 
     // 1. Inactive Projects
     // Check if any active projects have 0% progress and need focus
@@ -378,14 +345,6 @@ export default function AnalyticsView({
       });
     });
 
-    // High fidelity seed alerts matching mockup beautifully if real lists are empty
-    if (alerts.length === 0) {
-      alerts.push(
-        { type: 'No activity for 21 days', title: 'Fitness', desc: 'Health & Fitness progress is currently cold', days: 21, area: 'Personal' },
-        { type: 'No activity for 18 days', title: 'Frontend', desc: 'Product Launch subproject needs layout review', days: 18, area: 'Work' }
-      );
-    }
-
     return alerts.slice(0, 3);
   };
 
@@ -393,7 +352,7 @@ export default function AnalyticsView({
 
   // CARD 9: NEXT WEEK SUGGESTIONS
   const getSuggestions = () => {
-    const suggestions = [];
+    const suggestions: { action: string; item: string }[] = [];
 
     // If unassigned ideas count is high
     if (unassignedCount > 8) {
@@ -404,10 +363,12 @@ export default function AnalyticsView({
     }
 
     // Add suggestions based on stuck project
-    suggestions.push({
-      action: 'Resume Project',
-      item: `Continue work on stuck project: ${stuckProject.name}`
-    });
+    if (stuckProject) {
+      suggestions.push({
+        action: 'Resume Project',
+        item: `Continue work on stuck project: ${stuckProject.name}`
+      });
+    }
 
     // Add suggestions based on attention required
     attentionAlerts.forEach(alert => {
@@ -416,14 +377,6 @@ export default function AnalyticsView({
         item: `Address overdue focus in ${alert.title}`
       });
     });
-
-    // Fallbacks to guarantee high fidelity content coaching
-    if (suggestions.length < 4) {
-      suggestions.push(
-        { action: 'Review Semester Project', item: 'Check computer networks and software engineering coursework' },
-        { action: 'Resume Workout', item: 'Complete next session in your Health & Fitness diet plan' }
-      );
-    }
 
     return suggestions.slice(0, 4);
   };
@@ -855,29 +808,36 @@ export default function AnalyticsView({
             </p>
 
             <div className="space-y-4">
-              {attentionAlerts.map((alert, idx) => (
-                <div 
-                  key={idx} 
-                  className="flex items-center justify-between p-4 rounded-2xl bg-rose-50/40 dark:bg-rose-950/5 border border-rose-100/50 dark:border-rose-950/20 group/alert"
-                >
-                  <div className="flex-1 min-w-0 pr-3">
-                    <span className="text-[9px] font-bold font-mono uppercase tracking-wider text-rose-500 dark:text-rose-400">
-                      {alert.type}
-                    </span>
-                    <h4 className="text-xs font-bold text-[#1b1c1c] dark:text-white truncate mt-0.5">
-                      {alert.title}
-                    </h4>
-                    <p className="text-[10px] text-secondary truncate font-medium">
-                      {alert.desc}
-                    </p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <span className="text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-100/60 dark:bg-rose-950/40 px-2.5 py-1 rounded-full font-mono">
-                      {alert.days}d cold
-                    </span>
-                  </div>
+              {attentionAlerts.length === 0 ? (
+                <div className="py-6 text-center rounded-2xl border border-dashed border-[#efeded] dark:border-zinc-800 text-xs font-semibold text-emerald-500 flex flex-col items-center gap-1.5">
+                  <CheckCircle2 size={24} />
+                  <span>All workspaces are active and healthy!</span>
                 </div>
-              ))}
+              ) : (
+                attentionAlerts.map((alert, idx) => (
+                  <div 
+                    key={idx} 
+                    className="flex items-center justify-between p-4 rounded-2xl bg-rose-50/40 dark:bg-rose-950/5 border border-rose-100/50 dark:border-rose-950/20 group/alert"
+                  >
+                    <div className="flex-1 min-w-0 pr-3">
+                      <span className="text-[9px] font-bold font-mono uppercase tracking-wider text-rose-500 dark:text-rose-400">
+                        {alert.type}
+                      </span>
+                      <h4 className="text-xs font-bold text-[#1b1c1c] dark:text-white truncate mt-0.5">
+                        {alert.title}
+                      </h4>
+                      <p className="text-[10px] text-secondary truncate font-medium">
+                        {alert.desc}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <span className="text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-100/60 dark:bg-rose-950/40 px-2.5 py-1 rounded-full font-mono">
+                        {alert.days}d cold
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -941,18 +901,24 @@ export default function AnalyticsView({
             </p>
 
             {/* Stuck Project info block */}
-            <div className="mb-6 p-4 rounded-2xl bg-neutral-50 dark:bg-zinc-800/30 border border-[#efeded]/30 dark:border-zinc-800/30">
-              <div className="flex justify-between items-baseline text-xs font-bold text-black dark:text-white mb-2">
-                <span>{stuckProject.name}</span>
-                <span className="font-mono text-[11px]">{stuckProject.pct}%</span>
+            {stuckProject ? (
+              <div className="mb-6 p-4 rounded-2xl bg-neutral-50 dark:bg-zinc-800/30 border border-[#efeded]/30 dark:border-zinc-800/30">
+                <div className="flex justify-between items-baseline text-xs font-bold text-black dark:text-white mb-2">
+                  <span>{stuckProject.name}</span>
+                  <span className="font-mono text-[11px]">{stuckProject.pct}%</span>
+                </div>
+                <div className="w-full bg-[#efeded]/60 dark:bg-zinc-800/40 h-2 rounded-full overflow-hidden">
+                  <div 
+                    className="bg-rose-500 dark:bg-rose-400 h-full rounded-full transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                    style={{ width: isMounted ? `${stuckProject.pct}%` : '0%' }}
+                  />
+                </div>
               </div>
-              <div className="w-full bg-[#efeded]/60 dark:bg-zinc-800/40 h-2 rounded-full overflow-hidden">
-                <div 
-                  className="bg-rose-500 dark:bg-rose-400 h-full rounded-full transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)]"
-                  style={{ width: isMounted ? `${stuckProject.pct}%` : '0%' }}
-                />
+            ) : (
+              <div className="mb-6 p-4 rounded-2xl bg-neutral-50 dark:bg-zinc-800/30 border border-[#efeded]/30 dark:border-zinc-800/30 text-xs font-semibold text-center text-[#747878] dark:text-neutral-400">
+                No stuck projects! All clear.
               </div>
-            </div>
+            )}
 
             {/* Blocked by list */}
             <div className="space-y-3.5">
@@ -1015,22 +981,28 @@ export default function AnalyticsView({
             </p>
 
             <div className="space-y-4">
-              {suggestions.map((sug, idx) => (
-                <div 
-                  key={idx} 
-                  className="flex items-start gap-3 p-3.5 rounded-2xl bg-[#f5f3f3]/40 dark:bg-zinc-800/20 border border-[#efeded]/10 dark:border-zinc-800/10 hover:bg-[#efeded]/50 dark:hover:bg-zinc-800/40 transition-all duration-300"
-                >
-                  <div className="mt-0.5 w-1.5 h-1.5 rounded-full bg-black dark:bg-white flex-shrink-0" />
-                  <div className="min-w-0">
-                    <span className="block text-[10px] font-bold font-mono uppercase text-secondary tracking-wider">
-                      {sug.action}
-                    </span>
-                    <p className="text-xs text-[#1b1c1c] dark:text-neutral-300 font-medium leading-normal mt-0.5">
-                      {sug.item}
-                    </p>
-                  </div>
+              {suggestions.length === 0 ? (
+                <div className="py-6 text-center rounded-2xl border border-dashed border-[#efeded] dark:border-zinc-800 text-xs font-semibold text-[#747878] dark:text-neutral-400">
+                  No suggestions for next week yet.
                 </div>
-              ))}
+              ) : (
+                suggestions.map((sug, idx) => (
+                  <div 
+                    key={idx} 
+                    className="flex items-start gap-3 p-3.5 rounded-2xl bg-[#f5f3f3]/40 dark:bg-zinc-800/20 border border-[#efeded]/10 dark:border-zinc-800/10 hover:bg-[#efeded]/50 dark:hover:bg-zinc-800/40 transition-all duration-300"
+                  >
+                    <div className="mt-0.5 w-1.5 h-1.5 rounded-full bg-black dark:bg-white flex-shrink-0" />
+                    <div className="min-w-0">
+                      <span className="block text-[10px] font-bold font-mono uppercase text-secondary tracking-wider">
+                        {sug.action}
+                      </span>
+                      <p className="text-xs text-[#1b1c1c] dark:text-neutral-300 font-medium leading-normal mt-0.5">
+                        {sug.item}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 

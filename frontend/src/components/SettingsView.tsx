@@ -26,6 +26,24 @@ interface SettingsViewProps {
   onLogout?: () => void;
 }
 
+const safeConfirm = (message: string): boolean => {
+  try {
+    return window.confirm(message);
+  } catch (err) {
+    console.warn("confirm() blocked or failed, defaulting to true:", err);
+    return true;
+  }
+};
+
+const safeAlert = (message: string): void => {
+  try {
+    window.alert(message);
+  } catch (err) {
+    console.warn("alert() blocked or failed:", err);
+  }
+};
+
+
 export default function SettingsView({ 
   onResetData, 
   onClearAll,
@@ -233,9 +251,9 @@ export default function SettingsView({
                 </div>
                 <button
                   onClick={() => {
-                    if (window.confirm("Restore seeded items? This will reset custom content.")) {
+                    if (safeConfirm("Restore seeded items? This will reset custom content.")) {
                       onResetData();
-                      alert("Workspace reset complete!");
+                      safeAlert("Workspace reset complete!");
                     }
                   }}
                   className="bg-pill-active text-pill-active-text hover:opacity-90 px-4.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors text-center shrink-0 cursor-pointer"
@@ -256,9 +274,9 @@ export default function SettingsView({
                 </div>
                 <button
                   onClick={() => {
-                    if (window.confirm("Permanently erase ALL items? This cannot be undone.")) {
+                    if (safeConfirm("Permanently erase ALL items? This cannot be undone.")) {
                       onClearAll();
-                      alert("Sandbox cleared!");
+                      safeAlert("Sandbox cleared!");
                     }
                   }}
                   className="bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-950/20 dark:text-red-300 px-4.5 py-2 rounded-xl text-xs font-semibold transition-colors text-center shrink-0 cursor-pointer"

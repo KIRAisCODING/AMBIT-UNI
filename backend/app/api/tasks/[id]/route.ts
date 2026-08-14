@@ -91,6 +91,15 @@ export async function PATCH(
 
   const body = await req.json();
 
+  const existingTask = await prisma.task.findUnique({
+    where: { inboxItemId: id },
+  });
+
+  let completedAt = null;
+  if (body.completed) {
+    completedAt = existingTask?.completed ? existingTask.completedAt : new Date();
+  }
+
   const task = await prisma.task.upsert({
     where: {
       inboxItemId: id,
@@ -99,12 +108,14 @@ export async function PATCH(
       description: body.description,
       deadline: body.deadline ? new Date(body.deadline) : null,
       completed: body.completed,
+      completedAt,
     },
     create: {
       inboxItemId: id,
       description: body.description,
       deadline: body.deadline ? new Date(body.deadline) : null,
       completed: body.completed,
+      completedAt,
       userId,
     },
   });
