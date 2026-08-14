@@ -14,6 +14,14 @@ interface AnalyticsViewProps {
   hierarchy?: AreaHierarchy[];
 }
 
+const toLocalDateString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+
 export default function AnalyticsView({ 
   items = [], 
   habits = [], 
@@ -65,7 +73,7 @@ export default function AnalyticsView({
     for (let i = daysCount - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(today.getDate() - i);
-      const dStr = d.toISOString().split('T')[0];
+      const dStr = toLocalDateString(d);
 
       // Count actual completed tasks on this date (by completedAt)
       const actualCount = items.filter(it => 
@@ -513,7 +521,7 @@ export default function AnalyticsView({
                   {weeks.map((week, colIdx) => (
                     <div key={colIdx} className="flex flex-col gap-[3.5px] flex-1">
                       {week.map((date, rowIdx) => {
-                        const dateStr = date.toISOString().split('T')[0];
+                        const dateStr = toLocalDateString(date);
                         const count = getHabitsCompletedOnDate(dateStr);
                         const isFuture = date > today;
                         const formattedDate = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });

@@ -9,9 +9,22 @@ interface CalendarViewProps {
   onScheduleItem: (id: string, date: string) => void;
 }
 
+const toLocalDateString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+
 export default function CalendarView({ items, onScheduleItem }: CalendarViewProps) {
   const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = toLocalDateString(today);
 
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [currentMonthIdx, setCurrentMonthIdx] = useState(today.getMonth()); // 0-indexed
@@ -221,7 +234,7 @@ export default function CalendarView({ items, onScheduleItem }: CalendarViewProp
                 <span>Selected Schedule</span>
               </div>
               <h3 className="text-base font-bold text-textPrimary font-headline">
-                {new Date(selectedDateStr).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                {parseLocalDate(selectedDateStr).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
               </h3>
             </div>
 

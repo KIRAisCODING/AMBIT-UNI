@@ -136,7 +136,11 @@ function mapBackendTaskToBrainItem(item: any): BrainItem {
 
   let completedAt = undefined;
   if (taskData.completedAt) {
-    completedAt = taskData.completedAt.split('T')[0];
+    const d = new Date(taskData.completedAt);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    completedAt = `${year}-${month}-${day}`;
   }
 
   return {

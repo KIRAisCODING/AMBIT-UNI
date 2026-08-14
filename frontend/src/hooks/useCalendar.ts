@@ -51,6 +51,15 @@ function mapBackendTaskToBrainItem(item: any): BrainItem {
     deadline = taskData.deadline.split('T')[0];
   }
 
+  let completedAt = undefined;
+  if (taskData.completedAt) {
+    const d = new Date(taskData.completedAt);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    completedAt = `${year}-${month}-${day}`;
+  }
+
   return {
     id: item.id,
     content: item.content,
@@ -63,6 +72,7 @@ function mapBackendTaskToBrainItem(item: any): BrainItem {
     tags: item.tags || [],
     createdAt: item.createdAt || new Date().toISOString(),
     completed: Boolean(taskData.completed),
+    completedAt,
     scheduledDate: deadline,
     smartSummary: item.smartSummary || undefined,
     categorySuggestion: item.categorySuggestion || undefined,

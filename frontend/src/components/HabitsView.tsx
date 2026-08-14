@@ -22,6 +22,14 @@ const safeConfirm = (message: string): boolean => {
   }
 };
 
+const toLocalDateString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+
 
 export default function HabitsView({ 
   habits, 
@@ -62,7 +70,7 @@ export default function HabitsView({
       const d = new Date();
       d.setDate(d.getDate() - i);
       list.push({
-        dateStr: d.toISOString().split('T')[0],
+        dateStr: toLocalDateString(d),
         dayName: d.toLocaleDateString(undefined, { weekday: 'narrow' }),
         dayNum: d.getDate(),
         isToday: i === 0
@@ -72,7 +80,7 @@ export default function HabitsView({
   };
 
   const last7Days = getLast7Days();
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = toLocalDateString(new Date());
 
   // Derive all active projects from workspace hierarchy
   const allProjects: { name: string; area: string }[] = [];
@@ -151,7 +159,7 @@ export default function HabitsView({
     for (let i = 0; i < 30; i++) {
       const d = new Date();
       d.setDate(today.getDate() - i);
-      const dStr = d.toISOString().split('T')[0];
+      const dStr = toLocalDateString(d);
       if (habit.completedDays.includes(dStr)) {
         completions++;
       }

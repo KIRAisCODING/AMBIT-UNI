@@ -16,6 +16,12 @@ interface WorkspaceViewProps {
   onReorderTasks?: (orderedIds: string[]) => void;
 }
 
+const parseLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+
 export default function WorkspaceView({
   area,
   project,
@@ -409,7 +415,7 @@ export default function WorkspaceView({
                         {item.scheduledDate && (
                           <span className="inline-flex items-center gap-1 text-[10px] text-textSecondary font-mono font-medium">
                             <Calendar size={20} />
-                            <span>{new Date(item.scheduledDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                            <span>{parseLocalDate(item.scheduledDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                           </span>
                         )}
                       </div>
