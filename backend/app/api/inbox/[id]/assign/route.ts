@@ -67,12 +67,30 @@ export async function PATCH(
       },
     });
 
+    const maxTask = await prisma.task.findFirst({
+      where: {
+        userId: session.user.id,
+        inboxItem: {
+          areaId: areaId || null,
+          projectId: projectId || null,
+          subProjectId: subProjectId || null,
+        },
+      },
+      orderBy: {
+        order: "desc",
+      },
+    });
+    const nextOrder = maxTask ? maxTask.order + 1 : 0;
+
     await prisma.task.upsert({
       where: { inboxItemId: id },
-      update: {},
+      update: {
+        order: nextOrder,
+      },
       create: {
         inboxItemId: id,
         completed: false,
+        order: nextOrder,
         userId: session.user.id,
       },
     });

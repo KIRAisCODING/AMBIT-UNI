@@ -7,6 +7,7 @@ export interface UserSettings {
   dailyReviewReminder: boolean;
   streakAlerts: boolean;
   calendarSync: boolean;
+  onboardingCompleted: boolean;
 }
 
 export function useSettings() {
@@ -17,6 +18,7 @@ export function useSettings() {
     dailyReviewReminder: true,
     streakAlerts: true,
     calendarSync: false,
+    onboardingCompleted: true,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -59,6 +61,7 @@ export function useSettings() {
                 dailyReviewReminder: data.dailyReviewReminder,
                 streakAlerts: data.streakAlerts,
                 calendarSync: data.calendarSync,
+                onboardingCompleted: data.onboardingCompleted,
               });
 
               // Sync theme on HTML root element directly on load
@@ -100,6 +103,7 @@ export function useSettings() {
           dailyReviewReminder: data.dailyReviewReminder,
           streakAlerts: data.streakAlerts,
           calendarSync: data.calendarSync,
+          onboardingCompleted: data.onboardingCompleted,
         };
         setSettings(newSettings);
         

@@ -20,6 +20,7 @@ import CalendarView from './components/CalendarView';
 import AnalyticsView from './components/AnalyticsView';
 import SettingsView from './components/SettingsView';
 import BrainChat from './components/BrainChat';
+import ProductTour from './components/ProductTour';
 import WorkspaceView from './components/WorkspaceView';
 import LoginPage from './components/LoginPage';
 
@@ -307,6 +308,16 @@ export default function App() {
         items={items}
         isOpen={chatOpen}
         onClose={() => setChatOpen(false)}
+      />
+
+      {/* Onboarding Product Tour Overlay */}
+      <ProductTour 
+        onboardingCompleted={settings.onboardingCompleted}
+        onUpdateSettings={updateSettings}
+        setActiveTab={setActiveTab}
+        setSelectedSubProject={setSelectedSubProject}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
       />
     </div>
   );

@@ -76,6 +76,6 @@ function mapBackendTaskToBrainItem(item: any): BrainItem {
     scheduledDate: deadline,
     smartSummary: item.smartSummary || undefined,
     categorySuggestion: item.categorySuggestion || undefined,
-    order: item.order || undefined,
+    order: taskData.order !== undefined ? taskData.order : undefined,
   };
 }

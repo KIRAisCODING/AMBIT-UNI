@@ -24,6 +24,7 @@ export async function GET() {
           dailyReviewReminder: true,
           streakAlerts: true,
           calendarSync: false,
+          onboardingCompleted: false,
         },
       });
     }
@@ -53,6 +54,7 @@ export async function PATCH(req: Request) {
         dailyReviewReminder: body.dailyReviewReminder,
         streakAlerts: body.streakAlerts,
         calendarSync: body.calendarSync,
+        onboardingCompleted: body.onboardingCompleted,
       },
       create: {
         userId,
@@ -62,6 +64,7 @@ export async function PATCH(req: Request) {
         dailyReviewReminder: body.dailyReviewReminder ?? true,
         streakAlerts: body.streakAlerts ?? true,
         calendarSync: body.calendarSync ?? false,
+        onboardingCompleted: body.onboardingCompleted ?? false,
       },
     });
 

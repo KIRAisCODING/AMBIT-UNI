@@ -115,6 +115,7 @@ model Task {
   deadline     DateTime?
   completed    Boolean   @default(false)
   completedAt  DateTime?
+  order        Int       @default(0)
   inboxItem    InboxItem @relation(fields: [inboxItemId], references: [id], onDelete: Cascade)
 }
 
@@ -144,4 +145,5 @@ model Settings {
   dailyReviewReminder Boolean  @default(true)
   streakAlerts        Boolean  @default(true)
   calendarSync        Boolean  @default(false)
+  onboardingCompleted Boolean  @default(false)
 }

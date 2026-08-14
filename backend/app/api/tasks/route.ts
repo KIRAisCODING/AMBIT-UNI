@@ -24,6 +24,16 @@ export async function GET(req: Request) {
         include: {
           task: true,
         },
+        orderBy: [
+          {
+            task: {
+              order: "asc",
+            },
+          },
+          {
+            createdAt: "asc",
+          },
+        ],
       });
     } else {
       items = await prisma.inboxItem.findMany({
@@ -33,9 +43,16 @@ export async function GET(req: Request) {
         include: {
           task: true,
         },
-        orderBy: {
-          createdAt: "desc",
-        },
+        orderBy: [
+          {
+            task: {
+              order: "asc",
+            },
+          },
+          {
+            createdAt: "asc",
+          },
+        ],
       });
     }
 
@@ -117,11 +134,27 @@ export async function POST(req: Request) {
     });
 
     if (item.assigned || body.deadline) {
+      const maxTask = await prisma.task.findFirst({
+        where: {
+          userId,
+          inboxItem: {
+            areaId: areaId || null,
+            projectId: projectId || null,
+            subProjectId: subProjectId || null,
+          },
+        },
+        orderBy: {
+          order: "desc",
+        },
+      });
+      const nextOrder = maxTask ? maxTask.order + 1 : 0;
+
       await prisma.task.create({
         data: {
           inboxItemId: item.id,
           completed: false,
           deadline: body.deadline ? new Date(body.deadline) : null,
+          order: nextOrder,
           userId,
         },
       });

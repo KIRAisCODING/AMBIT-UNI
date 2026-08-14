@@ -107,12 +107,36 @@ export function useTasks() {
   };
 
   const reorderTasks = async (orderedIds: string[]) => {
+    const previousItems = [...items];
     const reordered = items.map((it) => {
       const idx = orderedIds.indexOf(it.id);
       if (idx !== -1) return { ...it, order: idx };
       return it;
     });
     setItems(reordered);
+
+    try {
+      const res = await fetch('/api/tasks/reorder', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderedIds }),
+      });
+      if (!res.ok) {
+        throw new Error('Failed to persist task order');
+      }
+    } catch (err) {
+      console.error('Failed to save task ordering:', err);
+      // Rollback only if the items state still matches the reordered state (i.e. no newer reorder has happened)
+      setItems((currentItems) => {
+        const currentIds = currentItems.map(it => it.id);
+        const reorderedIds = reordered.map(it => it.id);
+        const isSame = currentIds.length === reorderedIds.length && currentIds.every((id, i) => id === reorderedIds[i]);
+        if (isSame) {
+          return previousItems;
+        }
+        return currentItems;
+      });
+    }
   };
 
   return {
@@ -159,6 +183,6 @@ function mapBackendTaskToBrainItem(item: any): BrainItem {
     scheduledDate: deadline,
     smartSummary: item.smartSummary || undefined,
     categorySuggestion: item.categorySuggestion || undefined,
-    order: item.order || undefined,
+    order: taskData.order !== undefined ? taskData.order : undefined,
   };
 }

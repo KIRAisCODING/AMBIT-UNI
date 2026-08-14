@@ -255,13 +255,13 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
   };
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] max-w-2xl z-40">
+    <div id="tour-capture-composer" className="fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] max-w-2xl z-40">
       {/* Action Switching & Contextual Pills */}
       <div className="flex flex-col gap-2 mb-3">
         <div className="flex flex-wrap items-center justify-between gap-2 px-1">
           <div className="flex items-center gap-2 flex-wrap">
             {/* Assign Now vs Later Toggle */}
-            <div className="flex bg-pill/90 backdrop-blur-sm rounded-full p-0.5 shadow-sm border border-border h-[35px] items-center">
+            <div id="tour-assign-controls" className="flex bg-pill/90 backdrop-blur-sm rounded-full p-0.5 shadow-sm border border-border h-[35px] items-center">
               <button
                 type="button"
                 onClick={() => setAssignment('now')}

@@ -178,7 +178,7 @@ export default function WorkspaceView({
   };
 
   return (
-    <div className="w-full max-w-[1440px] mx-auto animate-fade-in">
+    <div id="tour-workspace-view" className="w-full max-w-[1440px] mx-auto animate-fade-in">
       {/* Workspace Header */}
       <div className="border-b border-border pb-5 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

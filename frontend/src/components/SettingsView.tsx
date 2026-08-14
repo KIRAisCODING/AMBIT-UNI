@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Sparkles, Trash2, Database, HelpCircle, BookOpen, KeyRound, AlertTriangle, 
-  Eye, Laptop, Sun, Moon, Keyboard, Bell, User, Check, ShieldCheck, Cpu
+  Eye, Laptop, Sun, Moon, Keyboard, Bell, User, Check, ShieldCheck, Cpu, Compass
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -231,6 +231,31 @@ export default function SettingsView({
                   className="rounded border-border text-textPrimary focus:ring-accent w-4 h-4 mt-0.5 cursor-pointer"
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Product Tour */}
+          <div className="bg-surface border border-border p-6 rounded-3xl canvas-shadow">
+            <div className="flex items-center gap-2 text-xs font-bold text-textSecondary uppercase tracking-wider mb-4 border-b border-border pb-3">
+              <Compass size={20} />
+              <span>Product Tour</span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h4 className="text-sm font-bold text-textPrimary">Learn how Ambit works</h4>
+                <p className="text-xs text-textSecondary mt-1 max-w-md">
+                  Restart the interactive tour to walk through the Inbox, Areas, Projects, and workflow principles.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  onUpdateSettings?.({ onboardingCompleted: false });
+                }}
+                className="bg-pill-active text-pill-active-text hover:opacity-90 px-4.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors text-center shrink-0 cursor-pointer"
+              >
+                Restart Tour
+              </button>
             </div>
           </div>
 

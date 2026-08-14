@@ -257,6 +257,7 @@ export default function Sidebar({
             return (
               <button
                 key={item.id}
+                id="tour-inbox-tab"
                 onClick={() => handleTabClick(item.id)}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium transition-all duration-200 text-left ${
                   isActive 
@@ -284,7 +285,7 @@ export default function Sidebar({
           </button>
 
           {/* HIERARCHY EXPLORER SECTION HEADER */}
-          <div className="pt-5 pb-2 px-4 text-[10px] font-bold uppercase tracking-widest text-textSecondary/60 flex items-center justify-between group/header">
+          <div id="tour-sidebar-areas" className="pt-5 pb-2 px-4 text-[10px] font-bold uppercase tracking-widest text-textSecondary/60 flex items-center justify-between group/header">
             <span>Hierarchy Explorer</span>
             <button 
               onClick={() => setShowAddAreaInput(!showAddAreaInput)}
@@ -316,7 +317,7 @@ export default function Sidebar({
 
           {/* Renders Hierarchical Tree */}
           <div className="space-y-0.5">
-            {hierarchy.map((area) => {
+            {hierarchy.map((area, areaIdx) => {
               const areaKey = `area:${area.name}`;
               const isAreaExpanded = !!expandedNodes[areaKey];
 
@@ -324,6 +325,7 @@ export default function Sidebar({
                 <div key={area.name} className="space-y-0.5">
                   {/* Area Row */}
                   <div 
+                    id={areaIdx === 0 ? "tour-area-row" : undefined}
                     className="group/item flex items-center justify-between px-3 py-1.5 rounded-lg hover:bg-surfaceSecondary text-textSecondary hover:text-textPrimary transition-colors cursor-pointer"
                     onClick={() => toggleNode(areaKey)}
                   >
@@ -382,7 +384,7 @@ export default function Sidebar({
                   {/* Projects in Area */}
                   {isAreaExpanded && (
                     <div className="ml-5 pl-2 border-l border-border space-y-0.5">
-                      {area.projects.map((project) => {
+                      {area.projects.map((project, projIdx) => {
                         const projectKey = `project:${area.name}/${project.name}`;
                         const isProjectExpanded = !!expandedNodes[projectKey];
 
@@ -390,6 +392,7 @@ export default function Sidebar({
                           <div key={project.name} className="space-y-0.5">
                             {/* Project Row */}
                             <div
+                              id={areaIdx === 0 && projIdx === 0 ? "tour-project-row" : undefined}
                               className="group/project flex items-center justify-between px-2 py-1 rounded-md hover:bg-surfaceSecondary text-textSecondary hover:text-textPrimary transition-colors cursor-pointer"
                               onClick={() => toggleNode(projectKey)}
                             >
@@ -448,7 +451,7 @@ export default function Sidebar({
                             {/* SubProjects inside Project */}
                             {isProjectExpanded && (
                               <div className="ml-4 pl-1.5 border-l border-border space-y-0.5 flex flex-col">
-                                {project.subProjects.map((subProj) => {
+                                {project.subProjects.map((subProj, subProjIdx) => {
                                   const isSelected = selectedSubProject?.area === area.name &&
                                                      selectedSubProject?.project === project.name &&
                                                      selectedSubProject?.subProject === subProj;
@@ -456,6 +459,7 @@ export default function Sidebar({
                                   return (
                                     <div
                                       key={subProj}
+                                      id={areaIdx === 0 && projIdx === 0 && subProjIdx === 0 ? "tour-subproject-row" : undefined}
                                       onClick={() => handleSubProjectClick(area.name, project.name, subProj)}
                                       className={`group/sub flex items-center justify-between px-2 py-1 rounded text-[11px] font-semibold cursor-pointer transition-colors ${
                                         isSelected
@@ -502,6 +506,7 @@ export default function Sidebar({
             return (
               <button
                 key={item.id}
+                id={item.id === 'Habits' ? 'tour-habits-tab' : item.id === 'Calendar' ? 'tour-calendar-tab' : undefined}
                 onClick={() => handleTabClick(item.id)}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium transition-all duration-200 text-left ${
                   isActive 
@@ -524,6 +529,7 @@ export default function Sidebar({
             return (
               <button
                 key={item.id}
+                id={item.id === 'Analytics' ? 'tour-analytics-tab' : item.id === 'Settings' ? 'tour-settings-tab' : undefined}
                 onClick={() => handleTabClick(item.id)}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium transition-all duration-200 text-left ${
                   isActive 
