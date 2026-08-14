@@ -25,6 +25,7 @@ model User {
   tasks         Task[]
   habits        Habit[]
   settings      Settings?
+  feedbacks     Feedback[]
 }
 
 model Account {
@@ -146,4 +147,24 @@ model Settings {
   streakAlerts        Boolean  @default(true)
   calendarSync        Boolean  @default(false)
   onboardingCompleted Boolean  @default(false)
+}
+
+model Feedback {
+  id                    String   @id @default(uuid())
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating                Int
+  clarity               String
+  workflowUnderstanding String
+  featuresUsed          String[]
+  confusion             String?  @db.Text
+  frustration           String?  @db.Text
+  usefulPart            String?  @db.Text
+  missingFeature        String?  @db.Text
+  regularUse            String
+  missMost              String?  @db.Text
+  recommendationScore   Int?
+  additionalFeedback    String?  @db.Text
+  route                 String
+  createdAt             DateTime @default(now())
 }

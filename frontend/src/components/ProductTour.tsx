@@ -150,7 +150,7 @@ export default function ProductTour({
     },
     {
       title: "That's Ambit",
-      description: "Don't try to organize your entire life upfront. Capture what matters. Organize it when you're ready. Then execute.\n\nCAPTURE → INBOX → ORGANIZE → AREA → PROJECT → SUBPROJECT → TASK → EXECUTE → REVIEW",
+      description: "Don't try to organize your entire life upfront. Capture what matters. Organize it when you're ready. Then execute.\n\nCAPTURE → INBOX → ORGANIZE → AREA → PROJECT → SUBPROJECT → TASK → EXECUTE → REVIEW\n\nHelp shape Ambit: Once you've used Ambit for a while, you can send feedback from Settings.",
       placement: "center"
     }
   ];

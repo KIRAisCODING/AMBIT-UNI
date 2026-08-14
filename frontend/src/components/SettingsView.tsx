@@ -3,6 +3,7 @@ import {
   Sparkles, Trash2, Database, HelpCircle, BookOpen, KeyRound, AlertTriangle, 
   Eye, Laptop, Sun, Moon, Keyboard, Bell, User, Check, ShieldCheck, Cpu, Compass
 } from 'lucide-react';
+import FeedbackModal from './FeedbackModal';
 
 interface SettingsViewProps {
   onResetData: () => void;
@@ -55,6 +56,7 @@ export default function SettingsView({
   onLogout
 }: SettingsViewProps) {
   // Mock Settings States
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [dailyReviewReminder, setDailyReviewReminder] = useState(settings?.dailyReviewReminder ?? true);
   const [streakAlerts, setStreakAlerts] = useState(settings?.streakAlerts ?? true);
   const [calendarSync, setCalendarSync] = useState(settings?.calendarSync ?? false);
@@ -259,6 +261,29 @@ export default function SettingsView({
             </div>
           </div>
 
+          {/* Share Beta Feedback */}
+          <div className="bg-surface border border-border p-6 rounded-3xl canvas-shadow">
+            <div className="flex items-center gap-2 text-xs font-bold text-textSecondary uppercase tracking-wider mb-4 border-b border-border pb-3">
+              <Sparkles size={20} className="text-yellow-400" />
+              <span>Help Improve Ambit</span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h4 className="text-sm font-bold text-textPrimary">Share Beta Feedback</h4>
+                <p className="text-xs text-textSecondary mt-1 max-w-md">
+                  You're one of our first beta testers. Tell us what you think, what confused you, and how we can improve Ambit.
+                </p>
+              </div>
+              <button
+                onClick={() => setFeedbackOpen(true)}
+                className="bg-pill-active text-pill-active-text hover:opacity-90 px-4.5 py-2 rounded-xl text-xs font-semibold shadow-sm transition-colors text-center shrink-0 cursor-pointer"
+              >
+                Share Feedback
+              </button>
+            </div>
+          </div>
+
           {/* Database Operations */}
           <div className="bg-surface border border-border p-6 rounded-3xl canvas-shadow">
             <div className="flex items-center gap-2 text-xs font-bold text-textSecondary uppercase tracking-wider mb-4 border-b border-border pb-3">
@@ -424,6 +449,7 @@ export default function SettingsView({
         </div>
 
       </div>
+      <FeedbackModal isOpen={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </div>
   );
 }
