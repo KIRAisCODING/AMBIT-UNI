@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
+app.set("trust proxy", true);
 const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
