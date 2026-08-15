@@ -119,6 +119,11 @@ function checkFrontendRateLimit(userId: string, category: string, limit: number,
   return { success: true, retryAfter: 0 };
 }
 
+// Health check endpoint
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
 // 1. Analyze captured thoughts endpoint (Extract tags, smart summary, and suggestions)
 app.post("/api/brain/analyze", async (req, res) => {
   try {

@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: ambit-app
+    env: node
+    plan: free # Can be updated based on preference
+    buildCommand: npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # Set manually in Render dashboard
+      - key: AUTH_SECRET
+        generateValue: true # Render will automatically generate a secure secret
+      - key: AUTH_GOOGLE_ID
+        sync: false
+      - key: AUTH_GOOGLE_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: APP_URL
+        sync: false # Set to the public Render URL, e.g., https://ambit-app.onrender.com
+      - key: FRONTEND_URL
+        sync: false # Set to the same public URL, e.g., https://ambit-app.onrender.com
