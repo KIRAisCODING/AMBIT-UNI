@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { verifyHierarchy } from "@/lib/verifyHierarchy";
 import { NextResponse } from "next/server";
 
 export async function DELETE(
@@ -96,6 +97,15 @@ export async function PATCH(
         });
         if (subProject) subProjectId = subProject.id;
       }
+    }
+
+    const finalAreaId = areaId !== undefined ? areaId : existingHabit.areaId;
+    const finalProjectId = projectId !== undefined ? projectId : existingHabit.projectId;
+    const finalSubProjectId = subProjectId !== undefined ? subProjectId : existingHabit.subProjectId;
+
+    const hierarchyCheck = await verifyHierarchy(userId, finalAreaId, finalProjectId, finalSubProjectId);
+    if (!hierarchyCheck.isValid) {
+      return NextResponse.json({ error: hierarchyCheck.error }, { status: 403 });
     }
 
     const updatedHabit = await prisma.habit.update({

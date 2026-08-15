@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { verifyHierarchy } from "@/lib/verifyHierarchy";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -63,6 +64,11 @@ export async function POST(req: Request) {
         },
       });
       if (subProject) subProjectId = subProject.id;
+    }
+
+    const hierarchyCheck = await verifyHierarchy(session.user.id, areaId, projectId, subProjectId);
+    if (!hierarchyCheck.isValid) {
+      return NextResponse.json({ error: hierarchyCheck.error }, { status: 403 });
     }
 
     const item = await prisma.inboxItem.create({
