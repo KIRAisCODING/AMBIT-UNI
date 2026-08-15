@@ -5,6 +5,7 @@ services:
     plan: free # Can be updated based on preference
     buildCommand: npm run build
     startCommand: npm run start
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
