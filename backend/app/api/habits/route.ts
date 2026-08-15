@@ -1,14 +1,12 @@
-import { auth } from "@/auth";
+import { authenticateAndRateLimit } from "@/lib/rateLimit";
 import { prisma } from "@/lib/prisma";
 import { verifyHierarchy } from "@/lib/verifyHierarchy";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session || !session.user || !session.user.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await authenticateAndRateLimit("read");
+    if (errorResponse) return errorResponse;
     const userId = session.user.id;
 
     const habits = await prisma.habit.findMany({
@@ -39,10 +37,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const session = await auth();
-    if (!session || !session.user || !session.user.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await authenticateAndRateLimit("write");
+    if (errorResponse) return errorResponse;
     const userId = session.user.id;
 
     const body = await req.json();

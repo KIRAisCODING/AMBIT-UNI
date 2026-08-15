@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { authenticateAndRateLimit } from "@/lib/rateLimit";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
@@ -38,11 +38,9 @@ const VALID_REGULAR_USE = [
 
 export async function POST(req: Request) {
   try {
-    // 1. Verify authenticated session
-    const session = await auth();
-    if (!session || !session.user || !session.user.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    // 1. Verify authenticated session and apply rate limiter
+    const { session, errorResponse } = await authenticateAndRateLimit("feedback");
+    if (errorResponse) return errorResponse;
     const userId = session.user.id;
 
     // 2. Parse request payload

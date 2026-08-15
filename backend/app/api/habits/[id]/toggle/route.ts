@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { authenticateAndRateLimit } from "@/lib/rateLimit";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
@@ -7,10 +7,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session || !session.user || !session.user.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { session, errorResponse } = await authenticateAndRateLimit("write");
+    if (errorResponse) return errorResponse;
     const userId = session.user.id;
     const { id } = await params;
     

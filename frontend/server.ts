@@ -33,32 +33,85 @@ function getGeminiClient(): GoogleGenAI {
   return aiClient;
 }
 
-// Session check helper
-async function checkAuth(req: express.Request): Promise<boolean> {
+// Session check helper returning user ID
+async function getUserId(req: express.Request): Promise<string | null> {
   try {
     const cookieHeader = req.headers.cookie || "";
     const sessionRes = await fetch("http://localhost:3001/api/auth/session", {
       headers: { cookie: cookieHeader },
     });
-    if (!sessionRes.ok) return false;
+    if (!sessionRes.ok) return null;
     const session = await sessionRes.json().catch(() => null);
-    return !!(session && session.user);
+    return session?.user?.id || null;
   } catch (err) {
-    console.error("Auth check failed in proxy:", err);
-    return false;
+    console.error("Auth check failed in proxy getUserId:", err);
+    return null;
   }
+}
+
+async function checkAuth(req: express.Request): Promise<boolean> {
+  const userId = await getUserId(req);
+  return !!userId;
+}
+
+// In-memory cache for frontend rate limiting
+interface FrontendRateLimit {
+  count: number;
+  resetTime: number;
+}
+const frontendCache = new Map<string, FrontendRateLimit>();
+
+function checkFrontendRateLimit(userId: string, category: string, limit: number, windowMs: number): { success: boolean; retryAfter: number } {
+  const now = Date.now();
+  const key = `${userId}:${category}`;
+
+  // Lazy cache cleanup
+  if (frontendCache.size > 10000) {
+    for (const [k, v] of frontendCache.entries()) {
+      if (now > v.resetTime) {
+        frontendCache.delete(k);
+      }
+    }
+  }
+
+  const record = frontendCache.get(key);
+  if (!record || now > record.resetTime) {
+    frontendCache.set(key, { count: 1, resetTime: now + windowMs });
+    return { success: true, retryAfter: 0 };
+  }
+
+  if (record.count >= limit) {
+    const retryAfter = Math.ceil((record.resetTime - now) / 1000);
+    return { success: false, retryAfter };
+  }
+
+  record.count += 1;
+  return { success: true, retryAfter: 0 };
 }
 
 // 1. Analyze captured thoughts endpoint (Extract tags, smart summary, and suggestions)
 app.post("/api/brain/analyze", async (req, res) => {
   try {
-    if (!(await checkAuth(req))) {
+    const userId = await getUserId(req);
+    if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    // Apply rate limit before validation or Gemini calls
+    const rateLimitCheck = checkFrontendRateLimit(userId, "ai", 10, 60 * 1000);
+    if (!rateLimitCheck.success) {
+      res.setHeader("Retry-After", String(rateLimitCheck.retryAfter));
+      return res.status(429).json({ error: "Too many requests. Please try again later." });
     }
 
     const { content, type } = req.body;
     if (!content || typeof content !== "string") {
       return res.status(400).json({ error: "Content must be a non-empty string." });
+    }
+
+    // Input payload size check (max 5000 characters)
+    if (content.length > 5000) {
+      return res.status(400).json({ error: "Content length exceeds maximum limit of 5000 characters." });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -154,13 +207,27 @@ Keep suggestions humble, highly contextual, and elegant.`;
 // 2. Chat with your external brain endpoint
 app.post("/api/brain/chat", async (req, res) => {
   try {
-    if (!(await checkAuth(req))) {
+    const userId = await getUserId(req);
+    if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    // Apply rate limit before validation or Gemini calls
+    const rateLimitCheck = checkFrontendRateLimit(userId, "ai", 10, 60 * 1000);
+    if (!rateLimitCheck.success) {
+      res.setHeader("Retry-After", String(rateLimitCheck.retryAfter));
+      return res.status(429).json({ error: "Too many requests. Please try again later." });
     }
 
     const { messages, items } = req.body;
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: "Messages array is required." });
+    }
+
+    // Input payload size check (max 10000 characters combined)
+    const messagesLength = messages.reduce((acc: number, m: any) => acc + (m.text?.length || 0), 0);
+    if (messagesLength > 10000) {
+      return res.status(400).json({ error: "Messages combined length exceeds limit of 10000 characters." });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
