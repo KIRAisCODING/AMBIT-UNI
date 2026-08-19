@@ -8,6 +8,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   secret: process.env.AUTH_SECRET,
   adapter: PrismaAdapter(prisma),
+  pages: {
+    signIn: "/",
+    signOut: "/",
+    error: "/",
+  },
   providers: [
     Google({
       clientId: process.env.AUTH_GOOGLE_ID,
@@ -32,14 +37,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
     async redirect({ url, baseUrl }) {
-      if (url.startsWith("/")) {
+      if (url.startsWith("/") && !url.startsWith("//") && !url.startsWith("/\\")) {
         return `${baseUrl}${url}`;
       }
       try {
         const urlObj = new URL(url);
         const baseObj = new URL(baseUrl);
-        if (urlObj.origin === baseObj.origin || urlObj.hostname === "localhost" || urlObj.hostname === "127.0.0.1") {
+        if (urlObj.origin === baseObj.origin) {
           return url;
+        }
+        if (process.env.NODE_ENV !== "production") {
+          if (urlObj.hostname === "localhost" || urlObj.hostname === "127.0.0.1") {
+            return url;
+          }
         }
       } catch (_) {}
       return baseUrl;

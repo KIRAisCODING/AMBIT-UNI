@@ -364,8 +364,29 @@ app.all("/api/*", async (req, res) => {
     }
     
     // Pass forwarding headers so NextAuth generates correct cookie domain & redirects
-    headers["x-forwarded-host"] = req.headers["host"] || "localhost:3000";
-    headers["x-forwarded-proto"] = req.protocol || "http";
+    let forwardHost = req.headers["host"] || "localhost:3000";
+    let forwardProto = req.protocol || "http";
+
+    if (process.env.NODE_ENV === "production") {
+      const canonicalUrl = process.env.FRONTEND_URL || process.env.APP_URL;
+      if (canonicalUrl) {
+        try {
+          const parsed = new URL(canonicalUrl);
+          forwardHost = parsed.host;
+          forwardProto = parsed.protocol.replace(":", "");
+        } catch (_) {
+          const cleanUrl = canonicalUrl.replace(/^https?:\/\//i, "").split("/")[0];
+          if (cleanUrl) forwardHost = cleanUrl;
+          forwardProto = canonicalUrl.toLowerCase().startsWith("https") ? "https" : "http";
+        }
+      } else {
+        forwardHost = "ambit-uni.onrender.com";
+        forwardProto = "https";
+      }
+    }
+
+    headers["x-forwarded-host"] = forwardHost;
+    headers["x-forwarded-proto"] = forwardProto;
 
     const response = await fetch(backendUrl, {
       method: req.method,
