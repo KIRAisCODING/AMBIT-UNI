@@ -73,6 +73,7 @@ model InboxItem {
   areaId      String?
   projectId   String?
   subProjectId String?
+  tags        String[] @default([])
   createdAt   DateTime @default(now())
   task        Task?
 }

@@ -65,6 +65,7 @@ export async function GET(req: Request) {
 
     const mappedItems = items.map((item: any) => ({
       ...item,
+      tags: Array.isArray(item.tags) ? item.tags : [],
       area: item.areaId ? areaMap.get(item.areaId) : null,
       project: item.projectId ? projectMap.get(item.projectId) : null,
       subProject: item.subProjectId ? subProjectMap.get(item.subProjectId) : null,
@@ -101,10 +102,13 @@ export async function POST(req: Request) {
         where: {
           name: body.project,
           userId,
-          ...(areaId ? { areaId } : {}),
         },
       });
-      if (project) projectId = project.id;
+      if (project) {
+        projectId = project.id;
+      } else {
+        return NextResponse.json({ error: "Project not found" }, { status: 400 });
+      }
     }
 
     if (!subProjectId && body.subProject) {
@@ -112,16 +116,23 @@ export async function POST(req: Request) {
         where: {
           name: body.subProject,
           userId,
-          ...(projectId ? { projectId } : {}),
         },
       });
-      if (subProject) subProjectId = subProject.id;
+      if (subProject) {
+        subProjectId = subProject.id;
+      } else {
+        return NextResponse.json({ error: "SubProject not found" }, { status: 400 });
+      }
     }
 
     const hierarchyCheck = await verifyHierarchy(userId, areaId, projectId, subProjectId);
     if (!hierarchyCheck.isValid) {
-      return NextResponse.json({ error: hierarchyCheck.error }, { status: 403 });
+      return NextResponse.json({ error: hierarchyCheck.error }, { status: 400 });
     }
+
+    const tags = Array.isArray(body.tags)
+      ? body.tags.filter((t: any) => typeof t === "string" && t.trim()).map((t: string) => t.trim())
+      : [];
 
     const item = await prisma.inboxItem.create({
       data: {
@@ -131,6 +142,7 @@ export async function POST(req: Request) {
         areaId,
         projectId,
         subProjectId,
+        tags,
         userId,
       },
     });
@@ -162,11 +174,29 @@ export async function POST(req: Request) {
       });
     }
 
+    let areaName = body.area || null;
+    let projectName = body.project || null;
+    let subProjectName = body.subProject || null;
+
+    if (!areaName && areaId) {
+      const a = await prisma.area.findUnique({ where: { id: areaId } });
+      if (a) areaName = a.name;
+    }
+    if (!projectName && projectId) {
+      const p = await prisma.project.findUnique({ where: { id: projectId } });
+      if (p) projectName = p.name;
+    }
+    if (!subProjectName && subProjectId) {
+      const sp = await prisma.subProject.findUnique({ where: { id: subProjectId } });
+      if (sp) subProjectName = sp.name;
+    }
+
     const resolvedItem = {
       ...item,
-      area: body.area || null,
-      project: body.project || null,
-      subProject: body.subProject || null,
+      tags: item.tags,
+      area: areaName,
+      project: projectName,
+      subProject: subProjectName,
     };
 
     return NextResponse.json(resolvedItem);

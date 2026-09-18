@@ -32,9 +32,13 @@ export function useTasks() {
           content: task.content,
           type: task.type,
           assigned: task.assignment === 'now',
+          areaId: task.areaId || null,
+          projectId: task.projectId || null,
+          subProjectId: task.subProjectId || null,
           area: task.area || null,
           project: task.project || null,
           subProject: task.subProject || null,
+          tags: task.tags,
           deadline: task.scheduledDate || null,
         }),
       });
@@ -44,6 +48,8 @@ export function useTasks() {
         setItems(prev => [mapped, ...prev]);
         return mapped;
       }
+      const error = await res.json().catch(() => null);
+      throw new Error(error?.error || 'Failed to create inbox item');
     } catch (err) {
       console.error('Failed to create task:', err);
     }
@@ -91,12 +97,12 @@ export function useTasks() {
     }
   };
 
-  const assignTask = async (id: string, area: string, project: string, subProject: string) => {
+  const assignTask = async (id: string, areaId: string, projectId: string, subProjectId?: string) => {
     try {
       const res = await fetch(`/api/inbox/${id}/assign`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ area, project, subProject }),
+        body: JSON.stringify({ areaId, projectId, subProjectId: subProjectId || null }),
       });
       if (res.ok) {
         await fetchTasks();
@@ -173,6 +179,9 @@ function mapBackendTaskToBrainItem(item: any): BrainItem {
     title: item.content,
     type: item.type as any,
     assignment: item.assigned ? 'now' : 'later',
+    areaId: item.areaId || undefined,
+    projectId: item.projectId || undefined,
+    subProjectId: item.subProjectId || undefined,
     area: item.area || undefined,
     project: item.project || undefined,
     subProject: item.subProject || undefined,

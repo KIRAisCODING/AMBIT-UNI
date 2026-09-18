@@ -40,8 +40,13 @@ export async function verifyHierarchy(
       return { isValid: false, error: "SubProject not found or access denied" };
     }
 
-    // Verify consistency: SubProject must belong to the selected Project if both are specified
-    if (projectId && subProject.projectId !== projectId) {
+    // SubProject requires a Project
+    if (!projectId) {
+      return { isValid: false, error: "SubProject hierarchy mismatch: SubProject requires a selected Project" };
+    }
+
+    // Verify consistency: SubProject must belong to the selected Project
+    if (subProject.projectId !== projectId) {
       return { isValid: false, error: "SubProject hierarchy mismatch: SubProject does not belong to the selected Project" };
     }
 

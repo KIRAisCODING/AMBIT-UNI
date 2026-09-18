@@ -26,9 +26,9 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
   }, [activeTab]);
 
   // Categorization state
-  const [area, setArea] = useState('');
-  const [project, setProject] = useState('');
-  const [subProject, setSubProject] = useState('');
+  const [areaId, setAreaId] = useState('');
+  const [projectId, setProjectId] = useState('');
+  const [subProjectId, setSubProjectId] = useState('');
 
   // Modal selector state
   const [activeMenuType, setActiveMenuType] = useState<'Area' | 'Project' | 'SubProject' | null>(null);
@@ -43,77 +43,33 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(true);
 
-  // Load defaults from hierarchy dynamically
-  useEffect(() => {
-    if (hierarchy && hierarchy.length > 0) {
-      const defaultArea = hierarchy[0].name;
-      const defaultProj = hierarchy[0].projects[0]?.name || '';
-      const defaultSub = hierarchy[0].projects[0]?.subProjects[0] || '';
-      setArea(defaultArea);
-      setProject(defaultProj);
-      setSubProject(defaultSub);
-    }
-  }, [hierarchy]);
-
-  // Helper lists derived dynamically from hierarchy
-  const areasList = hierarchy.map(a => a.name);
-
-  const currentAreaNode = hierarchy.find(a => a.name === area);
-  const projectsList = currentAreaNode ? currentAreaNode.projects.map(p => p.name) : [];
-
-  const currentProjectNode = currentAreaNode?.projects.find(p => p.name === project);
-  const subProjectsList = currentProjectNode ? currentProjectNode.subProjects : [];
+  // IDs are the source of truth.  Derived options can therefore never cross a
+  // parent boundary, even when names happen to be duplicated.
+  const currentAreaNode = hierarchy.find(a => a.id === areaId);
+  const currentProjectNode = currentAreaNode?.projects.find(p => p.id === projectId);
+  const area = currentAreaNode?.name ?? '';
+  const project = currentProjectNode?.name ?? '';
+  const subProject = currentProjectNode?.subProjects.find(sp => sp.id === subProjectId)?.name ?? '';
+  const areasList = hierarchy;
+  const projectsList = currentAreaNode?.projects ?? [];
+  const subProjectsList = currentProjectNode?.subProjects ?? [];
 
   const handleOpenMenu = (menuType: 'Area' | 'Project' | 'SubProject') => {
     setActiveMenuType(menuType);
   };
 
-  const handleSelectOption = (value: string) => {
-    let newTags = [...tags];
-    const addTag = (val: string) => {
-      if (val && !newTags.includes(val)) {
-        newTags.push(val);
-      }
-    };
-
+  const handleSelectOption = (value: { id?: string }) => {
+    if (!value.id) return;
     if (activeMenuType === 'Area') {
-      setArea(value);
-      addTag(value);
-      // Auto-update project and subproject defaults when switching area
-      const targetArea = hierarchy.find(a => a.name === value);
-      if (targetArea && targetArea.projects.length > 0) {
-        const nextProj = targetArea.projects[0].name;
-        setProject(nextProj);
-        addTag(nextProj);
-        if (targetArea.projects[0].subProjects.length > 0) {
-          const nextSub = targetArea.projects[0].subProjects[0];
-          setSubProject(nextSub);
-          addTag(nextSub);
-        } else {
-          setSubProject('');
-        }
-      } else {
-        setProject('');
-        setSubProject('');
-      }
+      setAreaId(value.id);
+      setProjectId('');
+      setSubProjectId('');
     } else if (activeMenuType === 'Project') {
-      setProject(value);
-      addTag(value);
-      // Auto-update subproject defaults when switching project
-      const targetProj = currentAreaNode?.projects.find(p => p.name === value);
-      if (targetProj && targetProj.subProjects.length > 0) {
-        const nextSub = targetProj.subProjects[0];
-        setSubProject(nextSub);
-        addTag(nextSub);
-      } else {
-        setSubProject('');
-      }
+      setProjectId(value.id);
+      setSubProjectId('');
     } else if (activeMenuType === 'SubProject') {
-      setSubProject(value);
-      addTag(value);
+      setSubProjectId(value.id);
     }
-
-    setTags(newTags);
     setActiveMenuType(null);
   };
 
@@ -122,7 +78,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
       e.preventDefault();
       const newTag = tagInput.trim();
       if (!tags.includes(newTag)) {
-        setTags([...tags, newTag]);
+        setTags(current => [...current, newTag]);
       }
       setTagInput('');
     }
@@ -140,11 +96,9 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
     if (onUpdateHierarchy) {
       await onUpdateHierarchy(updated);
     }
-    const oldArea = area;
-    setArea(name);
-    setProject('');
-    setSubProject('');
-    setTags(prev => [...prev.filter(x => x !== oldArea), name]);
+    setAreaId('');
+    setProjectId('');
+    setSubProjectId('');
     setNewItemName('');
     setErrorMsg('');
     setActiveMenuType(null);
@@ -154,16 +108,16 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
     e.preventDefault();
     if (!newItemName.trim()) return;
     const name = newItemName.trim();
-    const currentArea = hierarchy.find(a => a.name === area);
+    const currentArea = currentAreaNode;
     if (currentArea?.projects.some(p => p.name.toLowerCase() === name.toLowerCase())) {
       setErrorMsg('Project already exists.');
       return;
     }
     const updated = hierarchy.map(a => {
-      if (a.name === area) {
+      if (a.id === areaId) {
         return {
           ...a,
-          projects: [...a.projects, { name, subProjects: [] }]
+          projects: [...a.projects, { id: '', name, subProjects: [] }]
         };
       }
       return a;
@@ -171,10 +125,8 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
     if (onUpdateHierarchy) {
       await onUpdateHierarchy(updated);
     }
-    const oldProj = project;
-    setProject(name);
-    setSubProject('');
-    setTags(prev => [...prev.filter(x => x !== oldProj), name]);
+    setProjectId('');
+    setSubProjectId('');
     setNewItemName('');
     setErrorMsg('');
     setActiveMenuType(null);
@@ -184,21 +136,21 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
     e.preventDefault();
     if (!newItemName.trim()) return;
     const name = newItemName.trim();
-    const currentArea = hierarchy.find(a => a.name === area);
-    const currentProj = currentArea?.projects.find(p => p.name === project);
-    if (currentProj?.subProjects.some(sp => sp.toLowerCase() === name.toLowerCase())) {
+    const currentArea = currentAreaNode;
+    const currentProj = currentProjectNode;
+    if (currentProj?.subProjects.some(sp => sp.name.toLowerCase() === name.toLowerCase())) {
       setErrorMsg('Subproject already exists.');
       return;
     }
     const updated = hierarchy.map(a => {
-      if (a.name === area) {
+      if (a.id === areaId) {
         return {
           ...a,
           projects: a.projects.map(p => {
-            if (p.name === project) {
+            if (p.id === projectId) {
               return {
                 ...p,
-                subProjects: [...p.subProjects, name]
+                subProjects: [...p.subProjects, { id: '', name }]
               };
             }
             return p;
@@ -210,24 +162,32 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
     if (onUpdateHierarchy) {
       await onUpdateHierarchy(updated);
     }
-    const oldSub = subProject;
-    setSubProject(name);
-    setTags(prev => [...prev.filter(x => x !== oldSub), name]);
+    setSubProjectId('');
     setNewItemName('');
     setErrorMsg('');
     setActiveMenuType(null);
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter(t => t !== tagToRemove));
+    setTags(current => current.filter(t => t !== tagToRemove));
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!content.trim()) return;
 
-    if (assignment === 'now' && (!area || !project || !subProject)) {
-      alert("Please select or create Area, Project, and SubProject to assign now.");
+    if (assignment === 'now' && (!areaId || !projectId)) {
+      alert("Please select an Area and Project to assign now.");
+      return;
+    }
+
+    if (projectId && !currentProjectNode) {
+      setProjectId('');
+      setSubProjectId('');
+      return;
+    }
+    if (subProjectId && !currentProjectNode?.subProjects.some(sp => sp.id === subProjectId)) {
+      setSubProjectId('');
       return;
     }
 
@@ -237,6 +197,9 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
         content: content.trim(),
         type,
         assignment,
+        areaId: assignment === 'now' ? areaId : undefined,
+        projectId: assignment === 'now' ? projectId : undefined,
+        subProjectId: assignment === 'now' ? subProjectId || undefined : undefined,
         area: assignment === 'now' ? area : undefined,
         project: assignment === 'now' ? project : undefined,
         subProject: assignment === 'now' ? subProject : undefined,
@@ -473,12 +436,12 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                 <>
                   {areasList.map((option) => (
                     <button
-                      key={option}
+                      key={option.id}
                       type="button"
                       onClick={() => handleSelectOption(option)}
                       className="w-full text-left px-4 py-3 hover:bg-surfaceSecondary rounded-xl text-sm font-medium text-textPrimary transition-colors cursor-pointer"
                     >
-                      {option}
+                      {option.name}
                     </button>
                   ))}
                   {areasList.length === 0 && (
@@ -514,12 +477,12 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                     <>
                       {projectsList.map((option) => (
                         <button
-                          key={option}
-                          type="button;;"
+                          key={option.id}
+                          type="button"
                           onClick={() => handleSelectOption(option)}
                           className="w-full text-left px-4 py-3 hover:bg-surfaceSecondary rounded-xl text-sm font-medium text-textPrimary transition-colors cursor-pointer"
                         >
-                          {option}
+                          {option.name}
                         </button>
                       ))}
                       {projectsList.length === 0 && (
@@ -557,12 +520,12 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                     <>
                       {subProjectsList.map((option) => (
                         <button
-                          key={option}
+                          key={option.id}
                           type="button"
                           onClick={() => handleSelectOption(option)}
                           className="w-full text-left px-4 py-3 hover:bg-surfaceSecondary rounded-xl text-sm font-medium text-textPrimary transition-colors cursor-pointer"
                         >
-                          {option}
+                          {option.name}
                         </button>
                       ))}
                       {subProjectsList.length === 0 && (

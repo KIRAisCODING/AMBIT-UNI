@@ -136,10 +136,10 @@ export default function Sidebar({
       if (a.name === areaName) {
         const updatedProjects = a.projects.map(p => {
           if (p.name === projectName) {
-            if (p.subProjects.some(sp => sp.toLowerCase() === newSubProjectName.trim().toLowerCase())) return p;
+            if (p.subProjects.some(sp => sp.name.toLowerCase() === newSubProjectName.trim().toLowerCase())) return p;
             return {
               ...p,
-              subProjects: [...p.subProjects, newSubProjectName.trim()]
+              subProjects: [...p.subProjects, { name: newSubProjectName.trim() }]
             };
           }
           return p;
@@ -196,7 +196,7 @@ export default function Sidebar({
           if (p.name === projectName) {
             return {
               ...p,
-              subProjects: p.subProjects.filter(sp => sp !== subProjectName)
+              subProjects: p.subProjects.filter(sp => sp.name !== subProjectName)
             };
           }
           return p;
@@ -454,13 +454,13 @@ export default function Sidebar({
                                 {project.subProjects.map((subProj, subProjIdx) => {
                                   const isSelected = selectedSubProject?.area === area.name &&
                                                      selectedSubProject?.project === project.name &&
-                                                     selectedSubProject?.subProject === subProj;
+                                                     selectedSubProject?.subProject === subProj.name;
 
                                   return (
                                     <div
-                                      key={subProj}
+                                      key={subProj.id || subProj.name}
                                       id={areaIdx === 0 && projIdx === 0 && subProjIdx === 0 ? "tour-subproject-row" : undefined}
-                                      onClick={() => handleSubProjectClick(area.name, project.name, subProj)}
+                                      onClick={() => handleSubProjectClick(area.name, project.name, subProj.name)}
                                       className={`group/sub flex items-center justify-between px-2 py-1 rounded text-[11px] font-semibold cursor-pointer transition-colors ${
                                         isSelected
                                           ? 'bg-pill-active text-pill-active-text font-bold'
@@ -469,12 +469,12 @@ export default function Sidebar({
                                     >
                                       <div className="flex items-center gap-1.5 min-w-0">
                                         <Hash size={20} className={isSelected ? 'text-pill-active-text' : 'text-textSecondary/70'} />
-                                        <span className="truncate">{subProj}</span>
+                                        <span className="truncate">{subProj.name}</span>
                                       </div>
 
                                       {/* Delete SubProject Icon */}
                                       <button
-                                        onClick={(e) => handleDeleteSubProject(e, area.name, project.name, subProj)}
+                                        onClick={(e) => handleDeleteSubProject(e, area.name, project.name, subProj.name)}
                                         className="opacity-0 group-hover/sub:opacity-100 p-0.5 hover:bg-red-50 hover:text-red-600 rounded transition-opacity"
                                         title="Delete SubProject"
                                       >

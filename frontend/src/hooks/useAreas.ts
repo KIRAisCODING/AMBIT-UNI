@@ -13,10 +13,12 @@ export function useAreas() {
         const data = await res.json();
         rawHierarchyRef.current = data;
         const mapped = data.map((area: any) => ({
+          id: area.id,
           name: area.name,
           projects: (area.projects || []).map((proj: any) => ({
+            id: proj.id,
             name: proj.name,
-            subProjects: (proj.subProjects || []).map((sp: any) => sp.name),
+            subProjects: (proj.subProjects || []).map((sp: any) => ({ id: sp.id, name: sp.name })),
           })),
         }));
         setHierarchy(mapped);
@@ -90,6 +92,7 @@ export function useAreas() {
       deleteSubProject,
     };
     await syncHierarchy(hierarchy, newHierarchy, rawHierarchyRef.current, actions);
+    await fetchHierarchy();
   };
 
   return {
@@ -164,8 +167,8 @@ async function syncHierarchy(
 
       // Check for deleted SubProjects
       for (const oldSub of oldProj.subProjects) {
-        if (!newProj.subProjects.includes(oldSub)) {
-          const rawSub = rawProj.subProjects?.find((sp: any) => sp.name === oldSub);
+        if (!newProj.subProjects.some(subProject => subProject.name === oldSub.name)) {
+          const rawSub = rawProj.subProjects?.find((sp: any) => sp.name === oldSub.name);
           if (rawSub) await actions.deleteSubProject(rawSub.id);
           return;
         }
@@ -173,8 +176,8 @@ async function syncHierarchy(
 
       // Check for created SubProjects
       for (const newSub of newProj.subProjects) {
-        if (!oldProj.subProjects.includes(newSub)) {
-          await actions.createSubProject(newSub, rawProj.id);
+        if (!oldProj.subProjects.some(subProject => subProject.name === newSub.name)) {
+          await actions.createSubProject(newSub.name, rawProj.id);
           return;
         }
       }

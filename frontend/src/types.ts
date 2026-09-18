@@ -7,6 +7,9 @@ export interface BrainItem {
   priority?: 'low' | 'medium' | 'high';
   type: ItemType;
   assignment: 'now' | 'later';
+  areaId?: string;
+  projectId?: string;
+  subProjectId?: string;
   area?: string;
   project?: string;
   subProject?: string;
@@ -37,10 +40,15 @@ export interface Habit {
 export type ActiveTab = 'Inbox' | 'Unassigned' | 'Habits' | 'Calendar' | 'Analytics' | 'Settings';
 
 export interface AreaHierarchy {
+  id?: string;
   name: string;
   projects: {
+    id?: string;
     name: string;
-    subProjects: string[];
+    subProjects: {
+      id?: string;
+      name: string;
+    }[];
   }[];
 }
 

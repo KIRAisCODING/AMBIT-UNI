@@ -39,10 +39,13 @@ export async function PATCH(
         where: {
           name: body.project,
           userId: session.user.id,
-          ...(areaId ? { areaId } : {}),
         },
       });
-      if (project) projectId = project.id;
+      if (project) {
+        projectId = project.id;
+      } else {
+        return NextResponse.json({ error: "Project not found" }, { status: 400 });
+      }
     }
 
     if (!subProjectId && body.subProject) {
@@ -50,25 +53,34 @@ export async function PATCH(
         where: {
           name: body.subProject,
           userId: session.user.id,
-          ...(projectId ? { projectId } : {}),
         },
       });
-      if (subProject) subProjectId = subProject.id;
+      if (subProject) {
+        subProjectId = subProject.id;
+      } else {
+        return NextResponse.json({ error: "SubProject not found" }, { status: 400 });
+      }
     }
 
     const hierarchyCheck = await verifyHierarchy(session.user.id, areaId, projectId, subProjectId);
     if (!hierarchyCheck.isValid) {
-      return NextResponse.json({ error: hierarchyCheck.error }, { status: 403 });
+      return NextResponse.json({ error: hierarchyCheck.error }, { status: 400 });
+    }
+
+    const updateData: any = {
+      assigned: true,
+      areaId,
+      projectId,
+      subProjectId: subProjectId || null,
+    };
+
+    if (Array.isArray(body.tags)) {
+      updateData.tags = body.tags.filter((t: any) => typeof t === "string" && t.trim()).map((t: string) => t.trim());
     }
 
     const item = await prisma.inboxItem.update({
       where: { id },
-      data: {
-        assigned: true,
-        areaId,
-        projectId,
-        subProjectId,
-      },
+      data: updateData,
     });
 
     const maxTask = await prisma.task.findFirst({
