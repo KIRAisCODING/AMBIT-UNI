@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Folder, Calendar, Tag, AlertCircle } from 'lucide-react';
 import { BrainItem, ItemType, AreaHierarchy } from '../types';
 
 interface EditInboxItemModalProps {
   item: BrainItem;
   hierarchy: AreaHierarchy[];
+  isOpen?: boolean;
   onSave: (id: string, updates: Partial<BrainItem>) => Promise<void>;
   onClose: () => void;
 }
@@ -12,6 +13,7 @@ interface EditInboxItemModalProps {
 export default function EditInboxItemModal({
   item,
   hierarchy = [],
+  isOpen,
   onSave,
   onClose,
 }: EditInboxItemModalProps) {
@@ -19,10 +21,37 @@ export default function EditInboxItemModal({
   const [type, setType] = useState<ItemType>(item.type || 'Task');
   const [scheduledDate, setScheduledDate] = useState(item.scheduledDate || '');
 
+  // Helper to resolve hierarchy IDs from item
+  const resolveInitialHierarchy = (targetItem: BrainItem) => {
+    let resolvedAreaId = targetItem.areaId || '';
+    if (!resolvedAreaId && targetItem.area) {
+      const foundArea = hierarchy.find(a => a.name.toLowerCase() === targetItem.area?.toLowerCase());
+      if (foundArea?.id) resolvedAreaId = foundArea.id;
+    }
+
+    const areaNode = hierarchy.find(a => a.id === resolvedAreaId);
+    let resolvedProjectId = targetItem.projectId || '';
+    if (!resolvedProjectId && targetItem.project && areaNode) {
+      const foundProj = areaNode.projects.find(p => p.name.toLowerCase() === targetItem.project?.toLowerCase());
+      if (foundProj?.id) resolvedProjectId = foundProj.id;
+    }
+
+    const projNode = areaNode?.projects.find(p => p.id === resolvedProjectId);
+    let resolvedSubProjectId = targetItem.subProjectId || '';
+    if (!resolvedSubProjectId && targetItem.subProject && projNode) {
+      const foundSub = projNode.subProjects.find(sp => sp.name.toLowerCase() === targetItem.subProject?.toLowerCase());
+      if (foundSub?.id) resolvedSubProjectId = foundSub.id;
+    }
+
+    return { areaId: resolvedAreaId, projectId: resolvedProjectId, subProjectId: resolvedSubProjectId };
+  };
+
+  const initialHierarchy = resolveInitialHierarchy(item);
+
   // Hierarchy selection state
-  const [areaId, setAreaId] = useState<string>('');
-  const [projectId, setProjectId] = useState<string>('');
-  const [subProjectId, setSubProjectId] = useState<string>('');
+  const [areaId, setAreaId] = useState<string>(initialHierarchy.areaId);
+  const [projectId, setProjectId] = useState<string>(initialHierarchy.projectId);
+  const [subProjectId, setSubProjectId] = useState<string>(initialHierarchy.subProjectId);
 
   // Tags state
   const [tags, setTags] = useState<string[]>(item.tags ? [...item.tags] : []);
@@ -31,38 +60,25 @@ export default function EditInboxItemModal({
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Initialize hierarchy IDs and state on mount / item change
+  const currentItemIdRef = useRef<string>(item.id);
+
+  // Synchronize state ONLY when the item identity changes
   useEffect(() => {
-    setContent(item.content || '');
-    setType(item.type || 'Task');
-    setScheduledDate(item.scheduledDate || '');
-    setTags(item.tags ? [...item.tags] : []);
-    setTagInput('');
-    setErrorMsg('');
+    if (item.id !== currentItemIdRef.current) {
+      currentItemIdRef.current = item.id;
+      setContent(item.content || '');
+      setType(item.type || 'Task');
+      setScheduledDate(item.scheduledDate || '');
+      setTags(item.tags ? [...item.tags] : []);
+      setTagInput('');
+      setErrorMsg('');
 
-    let resolvedAreaId = item.areaId || '';
-    if (!resolvedAreaId && item.area) {
-      const foundArea = hierarchy.find(a => a.name.toLowerCase() === item.area?.toLowerCase());
-      if (foundArea?.id) resolvedAreaId = foundArea.id;
+      const resolved = resolveInitialHierarchy(item);
+      setAreaId(resolved.areaId);
+      setProjectId(resolved.projectId);
+      setSubProjectId(resolved.subProjectId);
     }
-    setAreaId(resolvedAreaId);
-
-    const areaNode = hierarchy.find(a => a.id === resolvedAreaId);
-    let resolvedProjectId = item.projectId || '';
-    if (!resolvedProjectId && item.project && areaNode) {
-      const foundProj = areaNode.projects.find(p => p.name.toLowerCase() === item.project?.toLowerCase());
-      if (foundProj?.id) resolvedProjectId = foundProj.id;
-    }
-    setProjectId(resolvedProjectId);
-
-    const projNode = areaNode?.projects.find(p => p.id === resolvedProjectId);
-    let resolvedSubProjectId = item.subProjectId || '';
-    if (!resolvedSubProjectId && item.subProject && projNode) {
-      const foundSub = projNode.subProjects.find(sp => sp.name.toLowerCase() === item.subProject?.toLowerCase());
-      if (foundSub?.id) resolvedSubProjectId = foundSub.id;
-    }
-    setSubProjectId(resolvedSubProjectId);
-  }, [item, hierarchy]);
+  }, [item.id, item.tags]);
 
   // Cascading options
   const selectedArea = hierarchy.find(a => a.id === areaId);
@@ -89,8 +105,12 @@ export default function EditInboxItemModal({
   };
 
   const handleAddTag = (e: React.KeyboardEvent | React.MouseEvent) => {
-    if ('key' in e && e.key !== 'Enter') return;
-    e.preventDefault();
+    if ('key' in e) {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+    } else {
+      e.preventDefault();
+    }
     const trimmed = tagInput.trim();
     if (!trimmed) return;
     if (!tags.includes(trimmed)) {
@@ -126,6 +146,9 @@ export default function EditInboxItemModal({
       const targetProj = targetArea?.projects.find(p => p.id === projectId);
       const targetSub = targetProj?.subProjects.find(sp => sp.id === subProjectId);
 
+      const trimmedInput = tagInput.trim();
+      const finalTags = (trimmedInput && !tags.includes(trimmedInput)) ? [...tags, trimmedInput] : tags;
+
       await onSave(item.id, {
         content: content.trim(),
         type,
@@ -135,7 +158,7 @@ export default function EditInboxItemModal({
         area: targetArea?.name || undefined,
         project: targetProj?.name || undefined,
         subProject: targetSub?.name || undefined,
-        tags,
+        tags: finalTags,
         scheduledDate: scheduledDate || undefined,
       });
       onClose();

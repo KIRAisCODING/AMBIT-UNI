@@ -114,8 +114,8 @@ export default function App() {
   };
 
   // 4. File unassigned ideas
-  const handleAssignItem = async (id: string, areaId: string, projectId: string, subProjectId?: string) => {
-    await assignTask(id, areaId, projectId, subProjectId);
+  const handleAssignItem = async (id: string, areaId: string, projectId: string, subProjectId?: string, tags?: string[]) => {
+    await assignTask(id, areaId, projectId, subProjectId, tags);
     await refreshCalendar();
   };
 

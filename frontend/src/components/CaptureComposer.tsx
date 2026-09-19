@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ChevronDown, ArrowUp, X, Sparkles, AlertCircle
 } from 'lucide-react';
@@ -9,9 +9,10 @@ interface CaptureComposerProps {
   hierarchy: AreaHierarchy[];
   activeTab?: string;
   onUpdateHierarchy?: (newHierarchy: AreaHierarchy[]) => void;
+  item?: BrainItem | null;
 }
 
-export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpdateHierarchy }: CaptureComposerProps) {
+export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpdateHierarchy, item }: CaptureComposerProps) {
   const [content, setContent] = useState('');
   const [assignment, setAssignment] = useState<'now' | 'later'>('later');
   const [type, setType] = useState<ItemType>('Task');
@@ -42,6 +43,32 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
   // AI loading and status
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(true);
+
+  const currentItemIdRef = useRef<string | null>(null);
+
+  // Synchronize with external item if passed
+  useEffect(() => {
+    if (item && item.id !== currentItemIdRef.current) {
+      currentItemIdRef.current = item.id;
+      setContent(item.content || '');
+      setType(item.type || 'Task');
+      setTags(item.tags ? [...item.tags] : []);
+      setTagInput('');
+      setAreaId(item.areaId || '');
+      setProjectId(item.projectId || '');
+      setSubProjectId(item.subProjectId || '');
+      setAssignment('now');
+    } else if (!item && currentItemIdRef.current !== null) {
+      currentItemIdRef.current = null;
+      setContent('');
+      setTags([]);
+      setTagInput('');
+      setAreaId('');
+      setProjectId('');
+      setSubProjectId('');
+      setAssignment('later');
+    }
+  }, [item?.id]);
 
   // IDs are the source of truth.  Derived options can therefore never cross a
   // parent boundary, even when names happen to be duplicated.
@@ -74,10 +101,10 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
   };
 
   const handleAddTag = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && tagInput.trim()) {
+    if (e.key === 'Enter') {
       e.preventDefault();
       const newTag = tagInput.trim();
-      if (!tags.includes(newTag)) {
+      if (newTag && !tags.includes(newTag)) {
         setTags(current => [...current, newTag]);
       }
       setTagInput('');
@@ -193,6 +220,9 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
 
     setIsAnalyzing(true);
     try {
+      const pendingTag = tagInput.trim();
+      const finalTags = (pendingTag && !tags.includes(pendingTag)) ? [...tags, pendingTag] : tags;
+
       await onCapture({
         content: content.trim(),
         type,
@@ -203,13 +233,17 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
         area: assignment === 'now' ? area : undefined,
         project: assignment === 'now' ? project : undefined,
         subProject: assignment === 'now' ? subProject : undefined,
-        tags,
+        tags: finalTags,
         completed: type === 'Task' ? false : undefined
       }, aiEnabled);
 
       // Reset
       setContent('');
       setTags([]);
+      setTagInput('');
+      setAreaId('');
+      setProjectId('');
+      setSubProjectId('');
     } catch (err) {
       console.error("Submit Capture Error:", err);
     } finally {
@@ -302,7 +336,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                   className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer h-[31px] flex items-center justify-center ${area ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
                     }`}
                 >
-                  Area
+                  {area || 'Area'}
                 </button>
                 <button
                   type="button"
@@ -310,7 +344,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                   className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer h-[31px] flex items-center justify-center ${project ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
                     }`}
                 >
-                  Project
+                  {project || 'Project'}
                 </button>
                 <button
                   type="button"
@@ -318,7 +352,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                   className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer h-[31px] flex items-center justify-center ${subProject ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
                     }`}
                 >
-                  SubProject
+                  {subProject || 'SubProject'}
                 </button>
               </div>
             </div>
@@ -405,7 +439,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           {/* Overlay */}
           <div
-
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => {
               setActiveMenuType(null);
               setNewItemName('');
@@ -413,7 +447,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
             }}
           />
           {/* Modal Card */}
-          <div className="relative bg-surface w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-border animate-scale-in">
+          <div className="relative z-10 bg-surface w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-border animate-scale-in">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs uppercase tracking-widest font-bold text-textSecondary">
                 Select {activeMenuType}
