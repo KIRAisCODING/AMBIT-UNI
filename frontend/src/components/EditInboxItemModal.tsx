@@ -31,8 +31,15 @@ export default function EditInboxItemModal({
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Initialize hierarchy IDs on mount
+  // Initialize hierarchy IDs and state on mount / item change
   useEffect(() => {
+    setContent(item.content || '');
+    setType(item.type || 'Task');
+    setScheduledDate(item.scheduledDate || '');
+    setTags(item.tags ? [...item.tags] : []);
+    setTagInput('');
+    setErrorMsg('');
+
     let resolvedAreaId = item.areaId || '';
     if (!resolvedAreaId && item.area) {
       const foundArea = hierarchy.find(a => a.name.toLowerCase() === item.area?.toLowerCase());
@@ -292,50 +299,34 @@ export default function EditInboxItemModal({
               <span>Tags ({tags.length})</span>
             </label>
 
-            {/* Tag Pills */}
-            <div className="flex flex-wrap items-center gap-1.5 mb-2 min-h-[32px] p-2 bg-surfaceSecondary border border-border rounded-xl">
-              {tags.map(t => (
-                <span
-                  key={t}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium bg-surface text-textPrimary px-2.5 py-1 rounded-lg border border-border animate-fade-in"
+            {/* Tag Container */}
+            <div className="flex flex-wrap items-center gap-1.5 p-2 bg-surfaceSecondary border border-border rounded-xl min-h-[42px]">
+              {tags.map((tag) => (
+                <div
+                  key={tag}
+                  className="flex items-center gap-1 px-2.5 py-1 bg-surface rounded-lg text-xs text-textSecondary border border-border transition-colors animate-fade-in"
                 >
-                  #{t}
+                  <span className="text-[11px] font-medium text-textPrimary">{tag}</span>
                   <button
                     type="button"
-                    onClick={() => handleRemoveTag(t)}
-                    className="hover:bg-red-100 dark:hover:bg-red-950/40 rounded-full p-0.5 text-textSecondary hover:text-red-600 transition-colors cursor-pointer"
-                    title={`Remove #${t}`}
+                    onClick={() => handleRemoveTag(tag)}
+                    className="hover:bg-red-100 dark:hover:bg-red-950/20 rounded-full p-0.5 cursor-pointer text-textSecondary hover:text-red-500"
+                    title={`Remove ${tag}`}
                   >
                     <X size={12} />
                   </button>
-                </span>
+                </div>
               ))}
 
-              {tags.length === 0 && (
-                <span className="text-xs text-textSecondary/50 italic px-1">
-                  No tags selected.
-                </span>
-              )}
-            </div>
-
-            {/* Tag Input */}
-            <div className="flex gap-2">
+              {/* Inline Tag Input */}
               <input
                 type="text"
                 value={tagInput}
                 onChange={e => setTagInput(e.target.value)}
                 onKeyDown={handleAddTag}
-                placeholder="Add tag and press Enter..."
-                className="flex-1 bg-surfaceSecondary border border-border rounded-xl px-3 py-1.5 text-xs text-textPrimary outline-none focus:ring-1 focus:ring-accent placeholder:text-textMuted"
+                placeholder="+ Tag..."
+                className="bg-transparent border-none focus:ring-0 text-xs px-2 py-1 max-w-[120px] text-textPrimary outline-none font-medium placeholder:text-textMuted/50"
               />
-              <button
-                type="button"
-                onClick={handleAddTag}
-                disabled={!tagInput.trim()}
-                className="px-3 py-1.5 bg-pill text-textPrimary hover:bg-pill-active hover:text-pill-active-text rounded-xl text-xs font-semibold transition-all disabled:opacity-40 cursor-pointer"
-              >
-                + Add
-              </button>
             </div>
           </div>
 

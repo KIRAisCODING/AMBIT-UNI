@@ -113,7 +113,7 @@ export default function UnassignedView({
                     <div className="flex flex-wrap gap-1 mt-2">
                       {item.tags.map((tag) => (
                         <span key={tag} className="text-[10px] text-textSecondary bg-pill px-2 py-0.5 rounded">
-                          #{tag}
+                          {tag}
                         </span>
                       ))}
                     </div>

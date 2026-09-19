@@ -575,7 +575,7 @@ export default function WorkspaceView({
                             <Tag size={20} className="text-textSecondary" />
                             {item.tags.map(t => (
                               <span key={t} className="text-[10px] text-textSecondary bg-pill px-2 py-0.5 rounded">
-                                #{t}
+                                {t}
                               </span>
                             ))}
                           </div>

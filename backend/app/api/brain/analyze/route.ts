@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     return NextResponse.json({
       smartSummary: `Auto-analyzed by Gemini Intelligence: "${body.content || ''}"`,
-      suggestedTags: ["AI-Extracted"],
+      suggestedTags: [],
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -221,7 +221,7 @@ export default function InboxView({
                         key={tag}
                         className="inline-flex items-center text-[10px] font-medium bg-pill text-textSecondary px-2 py-0.5 rounded transition-colors hover:opacity-80"
                       >
-                        #{tag}
+                        {tag}
                       </span>
                     ))}
                   </div>

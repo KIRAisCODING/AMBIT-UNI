@@ -88,9 +88,6 @@ export default function App() {
         if (response.ok) {
           const aiData = await response.json();
           finalItem.smartSummary = aiData.smartSummary;
-          if (aiData.suggestedTags && Array.isArray(aiData.suggestedTags)) {
-            finalItem.tags = Array.from(new Set([...newItem.tags, ...aiData.suggestedTags]));
-          }
         }
       } catch (err) {
         console.warn("AI extraction bypassed due to network or offline mode:", err);

@@ -439,7 +439,7 @@ export default function SettingsView({
                 </div>
                 <ul className="list-disc list-inside space-y-1 text-textSecondary pl-1">
                   <li><b>Semantic Extraction:</b> Automatically parses content to generate 10-word actionable smart summaries.</li>
-                  <li><b>Cognitive Association:</b> Extracts 2-3 relevant tags/hashtags without manual tagging.</li>
+                  <li><b>Cognitive Association:</b> Extracts 2-3 relevant tags without manual tagging.</li>
                   <li><b>Contextual Retrieval:</b> Enables you to query your entire notes database in natural language using the "Ask My Brain" Chat Assistant.</li>
                 </ul>
               </div>
