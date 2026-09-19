@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { 
   Check, Calendar, Tag, Plus, ArrowLeft, ArrowUpRight, AlertCircle, Trash2, Edit2, CheckCircle2, Circle, Eye, Sparkles, AlertTriangle, GripVertical
 } from 'lucide-react';
-import { BrainItem, ItemType } from '../types';
+import { BrainItem, ItemType, AreaHierarchy } from '../types';
+import EditInboxItemModal from './EditInboxItemModal';
 
 interface WorkspaceViewProps {
   area: string;
-  project: string;
-  subProject: string;
+  project?: string;
+  subProject?: string;
   items: BrainItem[];
+  hierarchy?: AreaHierarchy[];
   onToggleComplete: (id: string) => void;
   onDeleteItem: (id: string) => void;
   onAddTask: (task: Omit<BrainItem, 'id' | 'createdAt'>) => void;
@@ -27,19 +29,29 @@ export default function WorkspaceView({
   project,
   subProject,
   items,
+  hierarchy = [],
   onToggleComplete,
   onDeleteItem,
   onAddTask,
   onUpdateTask,
   onReorderTasks
 }: WorkspaceViewProps) {
-  // Filter tasks belonging only to this specific SubProject
-  const subProjectItems = items.filter(
-    item => item.assignment === 'now' && 
-            item.area === area && 
-            item.project === project && 
-            item.subProject === subProject
-  );
+  // Filter tasks belonging to this Area, Project, or SubProject
+  const subProjectItems = items.filter(item => {
+    const isAssigned = item.assignment === 'now' || Boolean(item.areaId || item.projectId || item.subProjectId || item.area || item.project || item.subProject);
+    if (!isAssigned) return false;
+
+    if (subProject) {
+      return (item.subProject === subProject || item.subProjectId === subProject) &&
+             (!project || item.project === project || item.projectId === project) &&
+             (!area || item.area === area || item.areaId === area);
+    }
+    if (project) {
+      return (item.project === project || item.projectId === project) &&
+             (!area || item.area === area || item.areaId === area);
+    }
+    return item.area === area || item.areaId === area;
+  });
 
   // Sort tasks using the custom sequential order field
   const sortedSubProjectItems = [...subProjectItems].sort((a, b) => {
@@ -59,6 +71,7 @@ export default function WorkspaceView({
   const [newTaskTags, setNewTaskTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [editingModalItem, setEditingModalItem] = useState<BrainItem | null>(null);
 
   // Inline editing state for expanded tasks
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -159,8 +172,8 @@ export default function WorkspaceView({
       type: 'Task',
       assignment: 'now',
       area,
-      project,
-      subProject,
+      project: project || undefined,
+      subProject: subProject || undefined,
       priority: newTaskPriority,
       scheduledDate: newTaskDate || undefined,
       tags: newTaskTags,
@@ -185,13 +198,21 @@ export default function WorkspaceView({
           {/* Breadcrumbs */}
           <div className="flex items-center gap-1.5 text-xs text-textSecondary font-semibold mb-1.5 uppercase tracking-wider">
             <span>{area}</span>
-            <span>/</span>
-            <span>{project}</span>
-            <span>/</span>
-            <span className="text-textPrimary font-mono">{subProject}</span>
+            {project && (
+              <>
+                <span>/</span>
+                <span>{project}</span>
+              </>
+            )}
+            {subProject && (
+              <>
+                <span>/</span>
+                <span className="text-textPrimary font-mono">{subProject}</span>
+              </>
+            )}
           </div>
           <h2 className="text-2xl md:text-3xl font-headline font-bold text-textPrimary flex items-center gap-2">
-            <span>{subProject} Workspace</span>
+            <span>{subProject ? `${subProject} Workspace` : project ? `${project} Workspace` : `${area} Workspace`}</span>
             <span className="text-xs bg-pill-active text-pill-active-text px-2 py-0.5 rounded-full font-mono font-bold">
               {subProjectItems.length} task{subProjectItems.length !== 1 ? 's' : ''}
             </span>
@@ -216,7 +237,7 @@ export default function WorkspaceView({
           <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
             <h3 className="text-sm font-bold text-textPrimary flex items-center gap-1.5">
               <CheckCircle2 size={20} />
-              <span>Create Task in {subProject}</span>
+              <span>Create Task in {subProject || project || area}</span>
             </h3>
             <button
               type="button"
@@ -433,11 +454,32 @@ export default function WorkspaceView({
                           {item.content}
                         </p>
                       )}
+
+                      {/* Associated Tags - Always visible on task card */}
+                      {item.tags && item.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {item.tags.map((tag) => (
+                            <span 
+                              key={tag}
+                              className="inline-flex items-center text-[10px] font-medium bg-pill text-textSecondary px-2 py-0.5 rounded transition-colors hover:opacity-80"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* Quick Action Buttons */}
                   <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => setEditingModalItem(item)}
+                      className="p-1.5 hover:bg-pill rounded-full text-textSecondary hover:text-textPrimary transition-colors cursor-pointer"
+                      title="Edit task details"
+                    >
+                      <Edit2 size={20} />
+                    </button>
                     <button
                       onClick={() => handleToggleExpand(item.id)}
                       className="p-1.5 hover:bg-pill rounded-full text-textSecondary hover:text-textPrimary transition-colors cursor-pointer"
@@ -584,7 +626,7 @@ export default function WorkspaceView({
                         {/* Bottom Actions Row */}
                         <div className="flex items-center justify-between border-t border-border pt-3">
                           <button
-                            onClick={() => startEditing(item)}
+                            onClick={() => setEditingModalItem(item)}
                             className="flex items-center gap-1.5 text-xs text-textSecondary hover:text-textPrimary font-semibold transition-colors cursor-pointer"
                           >
                             <Edit2 size={20} />
@@ -607,6 +649,19 @@ export default function WorkspaceView({
             );
           })}
         </div>
+      )}
+
+      {editingModalItem && (
+        <EditInboxItemModal
+          item={editingModalItem}
+          hierarchy={hierarchy}
+          isOpen={true}
+          onClose={() => setEditingModalItem(null)}
+          onSave={async (id, updates) => {
+            await onUpdateTask(id, updates);
+            setEditingModalItem(null);
+          }}
+        />
       )}
     </div>
   );

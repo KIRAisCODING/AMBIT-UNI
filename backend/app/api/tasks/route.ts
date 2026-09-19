@@ -11,49 +11,37 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const subProjectId = searchParams.get("subProjectId");
+    const projectId = searchParams.get("projectId");
+    const areaId = searchParams.get("areaId");
 
-    let items;
+    const where: any = { userId };
     if (subProjectId) {
-      items = await prisma.inboxItem.findMany({
-        where: {
-          userId,
-          subProjectId,
-          assigned: true,
-        },
-        include: {
-          task: true,
-        },
-        orderBy: [
-          {
-            task: {
-              order: "asc",
-            },
-          },
-          {
-            createdAt: "asc",
-          },
-        ],
-      });
-    } else {
-      items = await prisma.inboxItem.findMany({
-        where: {
-          userId,
-        },
-        include: {
-          task: true,
-        },
-        orderBy: [
-          {
-            task: {
-              order: "asc",
-            },
-          },
-          {
-            createdAt: "asc",
-          },
-        ],
-      });
+      where.subProjectId = subProjectId;
+      where.assigned = true;
+    } else if (projectId) {
+      where.projectId = projectId;
+      where.assigned = true;
+    } else if (areaId) {
+      where.areaId = areaId;
+      where.assigned = true;
     }
+
+    const items = await prisma.inboxItem.findMany({
+      where,
+      include: {
+        task: true,
+      },
+      orderBy: [
+        {
+          task: {
+            order: "asc",
+          },
+        },
+        {
+          createdAt: "asc",
+        },
+      ],
+    });
 
     const areas = await prisma.area.findMany({ where: { userId } });
     const projects = await prisma.project.findMany({ where: { userId } });

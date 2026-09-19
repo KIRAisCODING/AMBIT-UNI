@@ -56,6 +56,6 @@ export interface AreaHierarchy {
 
 export interface WorkspaceSelection {
   area: string;
-  project: string;
-  subProject: string;
+  project?: string;
+  subProject?: string;
 }

@@ -153,6 +153,7 @@ export async function PATCH(
     inboxUpdates.areaId = targetAreaId;
     inboxUpdates.projectId = targetProjectId;
     inboxUpdates.subProjectId = targetSubProjectId;
+    inboxUpdates.assigned = Boolean(targetAreaId || targetProjectId || targetSubProjectId);
   }
 
   if (Object.keys(inboxUpdates).length > 0) {
@@ -195,8 +196,28 @@ export async function PATCH(
     where: { id },
   });
 
+  let areaName = null;
+  let projectName = null;
+  let subProjectName = null;
+  if (updatedInboxItem?.areaId) {
+    const a = await prisma.area.findUnique({ where: { id: updatedInboxItem.areaId } });
+    if (a) areaName = a.name;
+  }
+  if (updatedInboxItem?.projectId) {
+    const p = await prisma.project.findUnique({ where: { id: updatedInboxItem.projectId } });
+    if (p) projectName = p.name;
+  }
+  if (updatedInboxItem?.subProjectId) {
+    const sp = await prisma.subProject.findUnique({ where: { id: updatedInboxItem.subProjectId } });
+    if (sp) subProjectName = sp.name;
+  }
+
   return NextResponse.json({
     ...updatedInboxItem,
+    tags: Array.isArray(updatedInboxItem?.tags) ? updatedInboxItem.tags : [],
+    area: areaName,
+    project: projectName,
+    subProject: subProjectName,
     task,
   });
 }

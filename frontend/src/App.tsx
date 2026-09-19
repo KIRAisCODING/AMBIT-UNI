@@ -170,6 +170,7 @@ export default function App() {
           project={selectedSubProject.project}
           subProject={selectedSubProject.subProject}
           items={items}
+          hierarchy={hierarchy}
           onToggleComplete={handleToggleComplete}
           onDeleteItem={handleDeleteItem}
           onAddTask={async (newTask) => {

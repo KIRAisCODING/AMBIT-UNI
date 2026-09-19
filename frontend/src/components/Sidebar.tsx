@@ -86,6 +86,22 @@ export default function Sidebar({
     }
   };
 
+  const handleAreaClick = (area: string) => {
+    setExpandedNodes(prev => ({ ...prev, [`area:${area}`]: true }));
+    setSelectedSubProject({ area, project: '', subProject: '' });
+    if (window.innerWidth < 768) {
+      onClose();
+    }
+  };
+
+  const handleProjectClick = (area: string, project: string) => {
+    setExpandedNodes(prev => ({ ...prev, [`project:${area}/${project}`]: true }));
+    setSelectedSubProject({ area, project, subProject: '' });
+    if (window.innerWidth < 768) {
+      onClose();
+    }
+  };
+
   const toggleNode = (nodeKey: string) => {
     setExpandedNodes(prev => ({
       ...prev,
@@ -321,20 +337,33 @@ export default function Sidebar({
               const areaKey = `area:${area.name}`;
               const isAreaExpanded = !!expandedNodes[areaKey];
 
+              const isSelectedArea = selectedSubProject?.area === area.name && !selectedSubProject?.project;
+
               return (
                 <div key={area.name} className="space-y-0.5">
                   {/* Area Row */}
                   <div 
                     id={areaIdx === 0 ? "tour-area-row" : undefined}
-                    className="group/item flex items-center justify-between px-3 py-1.5 rounded-lg hover:bg-surfaceSecondary text-textSecondary hover:text-textPrimary transition-colors cursor-pointer"
-                    onClick={() => toggleNode(areaKey)}
+                    className={`group/item flex items-center justify-between px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                      isSelectedArea
+                        ? 'bg-pill-active text-pill-active-text font-semibold'
+                        : 'text-textSecondary hover:bg-surfaceSecondary hover:text-textPrimary'
+                    }`}
+                    onClick={() => handleAreaClick(area.name)}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <button className="p-0.5 hover:bg-surfaceSecondary rounded text-textSecondary/75">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleNode(areaKey);
+                        }}
+                        className={`p-0.5 rounded ${isSelectedArea ? 'text-pill-active-text hover:bg-pill-active' : 'text-textSecondary/75 hover:bg-surfaceSecondary'}`}
+                      >
                         {isAreaExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
                       </button>
-                      <FolderOpen size={20} className="text-textSecondary flex-shrink-0" />
-                      <span className="text-xs font-bold tracking-tight truncate text-textPrimary">{area.name}</span>
+                      <FolderOpen size={20} className={isSelectedArea ? 'text-pill-active-text flex-shrink-0' : 'text-textSecondary flex-shrink-0'} />
+                      <span className={`text-xs font-bold tracking-tight truncate ${isSelectedArea ? 'text-pill-active-text' : 'text-textPrimary'}`}>{area.name}</span>
                     </div>
 
                     {/* Actions: Add project or Delete Area */}
@@ -387,21 +416,35 @@ export default function Sidebar({
                       {area.projects.map((project, projIdx) => {
                         const projectKey = `project:${area.name}/${project.name}`;
                         const isProjectExpanded = !!expandedNodes[projectKey];
+                        const isSelectedProject = selectedSubProject?.area === area.name &&
+                                                  selectedSubProject?.project === project.name &&
+                                                  !selectedSubProject?.subProject;
 
                         return (
                           <div key={project.name} className="space-y-0.5">
                             {/* Project Row */}
                             <div
                               id={areaIdx === 0 && projIdx === 0 ? "tour-project-row" : undefined}
-                              className="group/project flex items-center justify-between px-2 py-1 rounded-md hover:bg-surfaceSecondary text-textSecondary hover:text-textPrimary transition-colors cursor-pointer"
-                              onClick={() => toggleNode(projectKey)}
+                              className={`group/project flex items-center justify-between px-2 py-1 rounded-md transition-colors cursor-pointer ${
+                                isSelectedProject
+                                  ? 'bg-pill-active text-pill-active-text font-semibold'
+                                  : 'text-textSecondary hover:bg-surfaceSecondary hover:text-textPrimary'
+                              }`}
+                              onClick={() => handleProjectClick(area.name, project.name)}
                             >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <button className="p-0.5 rounded text-textSecondary/60">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <button 
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleNode(projectKey);
+                                  }}
+                                  className={`p-0.5 rounded ${isSelectedProject ? 'text-pill-active-text hover:bg-pill-active' : 'text-textSecondary/60 hover:bg-surfaceSecondary'}`}
+                                >
                                   {isProjectExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
                                 </button>
-                                <FolderKanban size={20} className="text-textSecondary flex-shrink-0" />
-                                <span className="text-[11px] font-semibold truncate text-textPrimary">{project.name}</span>
+                                <FolderKanban size={20} className={isSelectedProject ? 'text-pill-active-text flex-shrink-0' : 'text-textSecondary flex-shrink-0'} />
+                                <span className={`text-[11px] font-semibold truncate ${isSelectedProject ? 'text-pill-active-text' : 'text-textPrimary'}`}>{project.name}</span>
                               </div>
 
                               {/* Action Buttons */}
