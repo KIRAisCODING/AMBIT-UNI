@@ -163,7 +163,7 @@ export default function WorkspaceView({
       subProject,
       priority: newTaskPriority,
       scheduledDate: newTaskDate || undefined,
-      tags: [...newTaskTags, area, project],
+      tags: newTaskTags,
       completed: false,
       order: maxOrder + 1
     });

@@ -1,24 +1,30 @@
 import React, { useState } from 'react';
 import { 
-  Check, Trash2, Calendar, Folder, Tag, Search, Sparkles, Filter 
+  Check, Trash2, Calendar, Folder, Tag, Search, Sparkles, Filter, Pencil 
 } from 'lucide-react';
-import { BrainItem, ItemType } from '../types';
+import { BrainItem, ItemType, AreaHierarchy } from '../types';
+import EditInboxItemModal from './EditInboxItemModal';
 
 interface InboxViewProps {
   items: BrainItem[];
   onToggleComplete: (id: string) => void;
   onDeleteItem: (id: string) => void;
   onScheduleItem: (id: string, date: string) => void;
+  onUpdateItem?: (id: string, updates: Partial<BrainItem>) => Promise<void>;
+  hierarchy?: AreaHierarchy[];
 }
 
 export default function InboxView({ 
   items, 
   onToggleComplete, 
   onDeleteItem,
-  onScheduleItem
+  onScheduleItem,
+  onUpdateItem,
+  hierarchy = []
 }: InboxViewProps) {
   const [filterType, setFilterType] = useState<ItemType | 'All'>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingItem, setEditingItem] = useState<BrainItem | null>(null);
 
   // Filter items that are assigned (assignment === 'now')
   const assignedItems = items.filter(it => it.assignment === 'now');
@@ -137,6 +143,15 @@ export default function InboxView({
 
                   {/* Actions Dropdown / Trash */}
                   <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {onUpdateItem && (
+                      <button
+                        onClick={() => setEditingItem(item)}
+                        className="p-1.5 hover:bg-surfaceSecondary text-textSecondary hover:text-textPrimary rounded-full transition-colors cursor-pointer"
+                        title="Edit item"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                    )}
                     {item.type === 'Task' && (
                       <button
                         onClick={() => onToggleComplete(item.id)}
@@ -152,7 +167,7 @@ export default function InboxView({
                     )}
                     <button
                       onClick={() => onDeleteItem(item.id)}
-                      className="p-1.5 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 text-textSecondary rounded-full transition-colors"
+                      className="p-1.5 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 text-textSecondary rounded-full transition-colors cursor-pointer"
                       title="Delete item"
                     >
                       <Trash2 size={20} />
@@ -227,6 +242,16 @@ export default function InboxView({
             </div>
           ))}
         </div>
+      )}
+
+      {/* Edit Item Modal */}
+      {editingItem && onUpdateItem && (
+        <EditInboxItemModal
+          item={editingItem}
+          hierarchy={hierarchy}
+          onSave={onUpdateItem}
+          onClose={() => setEditingItem(null)}
+        />
       )}
     </div>
   );

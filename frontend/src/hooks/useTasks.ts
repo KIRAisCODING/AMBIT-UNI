@@ -57,32 +57,38 @@ export function useTasks() {
 
   const updateTask = async (id: string, updates: Partial<BrainItem>) => {
     try {
-      // If content is modified, call the rename route
-      if (updates.content !== undefined) {
-        await fetch(`/api/tasks/${id}/rename`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: updates.content }),
-        });
-      }
-
-      // Prepare fields to patch task details
       const payload: any = {};
       if (updates.completed !== undefined) payload.completed = updates.completed;
       if (updates.scheduledDate !== undefined) payload.deadline = updates.scheduledDate || null;
-      if (updates.content !== undefined) payload.description = updates.content;
+      if (updates.content !== undefined) {
+        payload.description = updates.content;
+        payload.content = updates.content;
+      }
+      if (updates.type !== undefined) payload.type = updates.type;
+      if (updates.areaId !== undefined) payload.areaId = updates.areaId || null;
+      if (updates.projectId !== undefined) payload.projectId = updates.projectId || null;
+      if (updates.subProjectId !== undefined) payload.subProjectId = updates.subProjectId || null;
+      if (updates.area !== undefined) payload.area = updates.area || null;
+      if (updates.project !== undefined) payload.project = updates.project || null;
+      if (updates.subProject !== undefined) payload.subProject = updates.subProject || null;
+      if (updates.tags !== undefined) payload.tags = updates.tags;
 
       if (Object.keys(payload).length > 0) {
-        await fetch(`/api/tasks/${id}`, {
+        const res = await fetch(`/api/tasks/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null);
+          throw new Error(errData?.error || 'Failed to update item');
+        }
       }
 
       await fetchTasks();
     } catch (err) {
       console.error('Failed to update task:', err);
+      throw err;
     }
   };
 
@@ -97,12 +103,17 @@ export function useTasks() {
     }
   };
 
-  const assignTask = async (id: string, areaId: string, projectId: string, subProjectId?: string) => {
+  const assignTask = async (id: string, areaId: string, projectId: string, subProjectId?: string, tags?: string[]) => {
     try {
       const res = await fetch(`/api/inbox/${id}/assign`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ areaId, projectId, subProjectId: subProjectId || null }),
+        body: JSON.stringify({
+          areaId,
+          projectId,
+          subProjectId: subProjectId || null,
+          ...(tags !== undefined ? { tags } : {})
+        }),
       });
       if (res.ok) {
         await fetchTasks();

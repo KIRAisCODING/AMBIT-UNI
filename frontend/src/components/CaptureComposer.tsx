@@ -518,6 +518,18 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                     </div>
                   ) : (
                     <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSubProjectId('');
+                          setActiveMenuType(null);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 hover:bg-surfaceSecondary rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                          !subProjectId ? 'bg-surfaceSecondary text-accent' : 'text-textSecondary italic'
+                        }`}
+                      >
+                        None (Optional)
+                      </button>
                       {subProjectsList.map((option) => (
                         <button
                           key={option.id}

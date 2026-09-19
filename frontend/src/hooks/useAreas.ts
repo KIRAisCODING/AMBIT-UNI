@@ -17,8 +17,13 @@ export function useAreas() {
           name: area.name,
           projects: (area.projects || []).map((proj: any) => ({
             id: proj.id,
+            areaId: area.id,
             name: proj.name,
-            subProjects: (proj.subProjects || []).map((sp: any) => ({ id: sp.id, name: sp.name })),
+            subProjects: (proj.subProjects || []).map((sp: any) => ({
+              id: sp.id,
+              projectId: proj.id,
+              name: sp.name,
+            })),
           })),
         }));
         setHierarchy(mapped);

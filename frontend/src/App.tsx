@@ -196,6 +196,11 @@ export default function App() {
             onToggleComplete={handleToggleComplete}
             onDeleteItem={handleDeleteItem}
             onScheduleItem={handleScheduleItem}
+            onUpdateItem={async (id, updates) => {
+              await updateTask(id, updates);
+              await refreshCalendar();
+            }}
+            hierarchy={hierarchy}
           />
         );
       case 'Unassigned':
@@ -280,7 +285,7 @@ export default function App() {
           {!sidebarOpen && (
             <button
               onClick={() => setSidebarOpen(true)}
-              className="absolute left-6 top-6 p-2 bg-surface border border-border rounded-xl shadow-sm text-textSecondary hover:text-textPrimary transition-all duration-200 z-10 flex items-center justify-center hover:scale-105 active:scale-95"
+              className="absolute left-6 top-6 p-2 bg-surface border border-border rounded-xl shadow-sm text-textSecondary hover:text-textPrimary transition-all duration-200 z-10 flex items-center justify-center hover:scale-105 active:scale-95 cursor-pointer"
               title="Open sidebar"
             >
               <Menu size={20} />
@@ -322,4 +327,3 @@ export default function App() {
     </div>
   );
 }
-

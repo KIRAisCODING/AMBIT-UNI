@@ -45,9 +45,11 @@ export interface AreaHierarchy {
   projects: {
     id?: string;
     name: string;
+    areaId?: string;
     subProjects: {
       id?: string;
       name: string;
+      projectId?: string;
     }[];
   }[];
 }
