@@ -5,9 +5,10 @@ import { NextResponse } from "next/server";
 const cache = new Map<string, { count: number; resetTime: number }>();
 
 export const LIMIT_CONFIGS = {
-  feedback: { limit: 5, windowMs: 60 * 60 * 1000 }, // 5 per hour
-  write: { limit: 60, windowMs: 60 * 1000 },       // 60 per minute
-  read: { limit: 300, windowMs: 60 * 1000 },       // 300 per minute
+  ai: { limit: 10, windowMs: 60 * 1000 },             // 10 per minute
+  feedback: { limit: 5, windowMs: 60 * 60 * 1000 },   // 5 per hour
+  write: { limit: 60, windowMs: 60 * 1000 },         // 60 per minute
+  read: { limit: 300, windowMs: 60 * 1000 },         // 300 per minute
 };
 
 /**

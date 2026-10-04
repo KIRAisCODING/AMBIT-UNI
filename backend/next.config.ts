@@ -1,21 +1,34 @@
 import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === "production";
-const rawFrontendUrl = process.env.FRONTEND_URL || process.env.APP_URL || (isProd ? "" : "http://localhost:3000");
-const frontendUrl = rawFrontendUrl.replace(/\/$/, "");
+
+const csp = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data: https://lh3.googleusercontent.com",
+  "connect-src 'self' ws: wss:",
+  "frame-ancestors 'none'",
+  "form-action 'self' https://accounts.google.com",
+].join("; ");
 
 const nextConfig: NextConfig = {
-  async redirects() {
-    if (!frontendUrl) {
-      return [];
-    }
-    return [
-      {
-        source: '/:path((?!api|_next|favicon.ico).*)',
-        destination: `${frontendUrl}/:path`,
-        permanent: false,
-      },
-    ];
+  async rewrites() {
+    return {
+      beforeFiles: [
+        {
+          source: "/",
+          destination: "/index.html",
+        },
+        {
+          source: "/:path((?!api|_next|favicon.ico|assets).*)",
+          destination: "/index.html",
+        },
+      ],
+      afterFiles: [],
+      fallback: [],
+    };
   },
   async headers() {
     return [
@@ -38,6 +51,10 @@ const nextConfig: NextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()",
           },
+          {
+            key: "Content-Security-Policy",
+            value: csp,
+          },
           ...(isProd
             ? [
                 {
@@ -53,3 +70,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
