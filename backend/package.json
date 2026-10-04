@@ -8,6 +8,15 @@
     "start": "next start -p 3001",
     "lint": "eslint"
   },
+  "allowScripts": {
+    "@google/genai": true,
+    "@prisma/client": true,
+    "@prisma/engines": true,
+    "prisma": true,
+    "protobufjs": true,
+    "sharp": true,
+    "unrs-resolver": true
+  },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
     "@google/genai": "^2.27.0",
