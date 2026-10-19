@@ -143,8 +143,32 @@ export function useSettings() {
     }
   };
 
-  const login = () => {
-    window.location.href = "/api/auth/signin/google";
+  const login = async () => {
+    try {
+      const res = await fetch('/api/auth/csrf');
+      const { csrfToken } = await res.json();
+
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/api/auth/signin/google';
+
+      const csrfInput = document.createElement('input');
+      csrfInput.type = 'hidden';
+      csrfInput.name = 'csrfToken';
+      csrfInput.value = csrfToken;
+      form.appendChild(csrfInput);
+
+      const callbackInput = document.createElement('input');
+      callbackInput.type = 'hidden';
+      callbackInput.name = 'callbackUrl';
+      callbackInput.value = window.location.origin + '/';
+      form.appendChild(callbackInput);
+
+      document.body.appendChild(form);
+      form.submit();
+    } catch (err) {
+      console.error('Failed to initiate Google signin:', err);
+    }
   };
 
   const logout = async () => {
