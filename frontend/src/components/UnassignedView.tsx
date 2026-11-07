@@ -186,21 +186,22 @@ export default function UnassignedView({
                           )}
                         </select>
 
-                        <ArrowRight size={16} className="text-textSecondary" />
-
-                        {/* Subproject */}
-                        <select 
-                          value={selectedSubProjectId}
-                          onChange={(e) => setSelectedSubProjectId(e.target.value)}
-                          className="bg-surface border border-border rounded-lg text-xs py-1.5 px-2.5 font-mono text-textPrimary focus:ring-1 focus:ring-accent outline-none"
-                          disabled={!selectedProjectId || availableSubProjects.length === 0}
-                        >
-                          {availableSubProjects.length === 0 ? (
-                            <option value="">{selectedProjectId ? 'No Subprojects' : 'Select a Project first'}</option>
-                          ) : (
-                            <><option value="">Optional</option>{availableSubProjects.map(sp => <option key={sp.id} value={sp.id}>{sp.name}</option>)}</>
-                          )}
-                        </select>
+                        {/* Subproject (Only shown if selected project has subprojects) */}
+                        {selectedProjectId && availableSubProjects.length > 0 && (
+                          <>
+                            <ArrowRight size={16} className="text-textSecondary" />
+                            <select 
+                              value={selectedSubProjectId}
+                              onChange={(e) => setSelectedSubProjectId(e.target.value)}
+                              className="bg-surface border border-border rounded-lg text-xs py-1.5 px-2.5 font-mono text-textPrimary focus:ring-1 focus:ring-accent outline-none"
+                            >
+                              <option value="">Subproject (Optional)</option>
+                              {availableSubProjects.map(sp => (
+                                <option key={sp.id} value={sp.id}>{sp.name}</option>
+                              ))}
+                            </select>
+                          </>
+                        )}
 
                         <button
                           type="button"

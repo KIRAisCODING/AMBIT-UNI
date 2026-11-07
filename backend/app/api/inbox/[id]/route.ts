@@ -106,6 +106,20 @@ export async function PATCH(
         }
       }
 
+      // Automatically clear incompatible child hierarchy if parent changed without explicit child provided
+      if (targetAreaId !== existingItem.areaId) {
+        if (body.projectId === undefined && body.project === undefined) {
+          targetProjectId = null;
+          targetSubProjectId = null;
+        } else if (body.subProjectId === undefined && body.subProject === undefined) {
+          targetSubProjectId = null;
+        }
+      } else if (targetProjectId !== existingItem.projectId) {
+        if (body.subProjectId === undefined && body.subProject === undefined) {
+          targetSubProjectId = null;
+        }
+      }
+
       const hierarchyCheck = await verifyHierarchy(userId, targetAreaId, targetProjectId, targetSubProjectId);
       if (!hierarchyCheck.isValid) {
         return NextResponse.json({ error: hierarchyCheck.error }, { status: 400 });

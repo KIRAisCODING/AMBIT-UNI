@@ -152,12 +152,12 @@ export default function EditInboxItemModal({
       await onSave(item.id, {
         content: content.trim(),
         type,
-        areaId: areaId || undefined,
-        projectId: projectId || undefined,
-        subProjectId: subProjectId || undefined,
-        area: targetArea?.name || undefined,
-        project: targetProj?.name || undefined,
-        subProject: targetSub?.name || undefined,
+        areaId: areaId || null,
+        projectId: projectId || null,
+        subProjectId: subProjectId || null,
+        area: targetArea?.name || null,
+        project: targetProj?.name || null,
+        subProject: targetSub?.name || null,
         tags: finalTags,
         scheduledDate: scheduledDate || undefined,
       });
@@ -255,7 +255,7 @@ export default function EditInboxItemModal({
               <span>External Brain Hierarchy</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div className={`grid grid-cols-1 ${projectId && availableSubProjects.length > 0 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-2.5`}>
               {/* Area */}
               <div>
                 <label className="block text-[10px] uppercase font-bold text-textSecondary/80 mb-1">
@@ -293,25 +293,24 @@ export default function EditInboxItemModal({
                 </select>
               </div>
 
-              {/* SubProject (Optional) */}
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-textSecondary/80 mb-1">
-                  Subproject <span className="normal-case font-normal text-textSecondary/60">(Optional)</span>
-                </label>
-                <select
-                  value={subProjectId}
-                  onChange={e => handleSubProjectChange(e.target.value)}
-                  disabled={!projectId || availableSubProjects.length === 0}
-                  className="w-full bg-surface border border-border rounded-xl px-2.5 py-1.5 text-xs font-medium text-textPrimary outline-none focus:ring-1 focus:ring-accent disabled:opacity-50 font-mono"
-                >
-                  <option value="">
-                    {!projectId ? 'Select Project first' : availableSubProjects.length === 0 ? 'No Subprojects' : 'None (Optional)'}
-                  </option>
-                  {availableSubProjects.map(sp => (
-                    <option key={sp.id} value={sp.id}>{sp.name}</option>
-                  ))}
-                </select>
-              </div>
+              {/* SubProject (Optional - only visible if selected project has subprojects) */}
+              {projectId && availableSubProjects.length > 0 && (
+                <div>
+                  <label className="block text-[10px] uppercase font-bold text-textSecondary/80 mb-1">
+                    Subproject <span className="normal-case font-normal text-textSecondary/60">(Optional)</span>
+                  </label>
+                  <select
+                    value={subProjectId}
+                    onChange={e => handleSubProjectChange(e.target.value)}
+                    className="w-full bg-surface border border-border rounded-xl px-2.5 py-1.5 text-xs font-medium text-textPrimary outline-none focus:ring-1 focus:ring-accent font-mono"
+                  >
+                    <option value="">None (Optional)</option>
+                    {availableSubProjects.map(sp => (
+                      <option key={sp.id} value={sp.id}>{sp.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           </div>
 

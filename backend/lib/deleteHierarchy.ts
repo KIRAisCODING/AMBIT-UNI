@@ -236,9 +236,6 @@ export async function deleteSubProject(id: string, mode: DeleteMode = "delete") 
         subProjectId: id,
       },
       data: {
-        assigned: false,
-        areaId: null,
-        projectId: null,
         subProjectId: null,
       },
     }),

@@ -433,16 +433,20 @@ export default function Sidebar({
                               onClick={() => handleProjectClick(area.name, project.name)}
                             >
                               <div className="flex items-center gap-2 min-w-0 flex-1">
-                                <button 
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleNode(projectKey);
-                                  }}
-                                  className={`p-0.5 rounded ${isSelectedProject ? 'text-pill-active-text hover:bg-pill-active' : 'text-textSecondary/60 hover:bg-surfaceSecondary'}`}
-                                >
-                                  {isProjectExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                                </button>
+                                {project.subProjects && project.subProjects.length > 0 ? (
+                                  <button 
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleNode(projectKey);
+                                    }}
+                                    className={`p-0.5 rounded ${isSelectedProject ? 'text-pill-active-text hover:bg-pill-active' : 'text-textSecondary/60 hover:bg-surfaceSecondary'}`}
+                                  >
+                                    {isProjectExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                                  </button>
+                                ) : (
+                                  <span className="w-5 shrink-0" />
+                                )}
                                 <FolderKanban size={20} className={isSelectedProject ? 'text-pill-active-text flex-shrink-0' : 'text-textSecondary flex-shrink-0'} />
                                 <span className={`text-[11px] font-semibold truncate ${isSelectedProject ? 'text-pill-active-text' : 'text-textPrimary'}`}>{project.name}</span>
                               </div>
@@ -455,7 +459,7 @@ export default function Sidebar({
                                     setActiveAddSubProjectKey(`${area.name}/${project.name}`);
                                   }}
                                   className="p-0.5 hover:bg-surfaceSecondary rounded text-textSecondary"
-                                  title="Add SubProject"
+                                  title="Add subproject"
                                 >
                                   <Plus size={20} />
                                 </button>
@@ -485,14 +489,14 @@ export default function Sidebar({
                                       if (!newSubProjectName.trim()) setActiveAddSubProjectKey(null);
                                     }, 200);
                                   }}
-                                  placeholder="SubProject name..."
+                                  placeholder="Subproject name..."
                                   className="w-full bg-surfaceSecondary border border-border text-[11px] px-2 py-1 rounded outline-none text-textPrimary font-semibold placeholder:text-textMuted"
                                 />
                               </form>
                             )}
 
                             {/* SubProjects inside Project */}
-                            {isProjectExpanded && (
+                            {isProjectExpanded && project.subProjects && project.subProjects.length > 0 && (
                               <div className="ml-4 pl-1.5 border-l border-border space-y-0.5 flex flex-col">
                                 {project.subProjects.map((subProj, subProjIdx) => {
                                   const isSelected = selectedSubProject?.area === area.name &&

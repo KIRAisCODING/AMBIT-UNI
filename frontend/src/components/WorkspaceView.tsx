@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  Check, Calendar, Tag, Plus, ArrowLeft, ArrowUpRight, AlertCircle, Trash2, Edit2, CheckCircle2, Circle, Eye, Sparkles, AlertTriangle, GripVertical
+  Check, Calendar, Tag, Plus, ArrowLeft, ArrowUpRight, AlertCircle, Trash2, Edit2, CheckCircle2, Circle, Eye, Sparkles, AlertTriangle, GripVertical, Folder, X
 } from 'lucide-react';
 import { BrainItem, ItemType, AreaHierarchy } from '../types';
 import EditInboxItemModal from './EditInboxItemModal';
@@ -11,6 +11,7 @@ interface WorkspaceViewProps {
   subProject?: string;
   items: BrainItem[];
   hierarchy?: AreaHierarchy[];
+  onCreateSubProject?: (name: string, projectId: string) => Promise<void>;
   onToggleComplete: (id: string) => void;
   onDeleteItem: (id: string) => void;
   onAddTask: (task: Omit<BrainItem, 'id' | 'createdAt'>) => void;
@@ -30,12 +31,18 @@ export default function WorkspaceView({
   subProject,
   items,
   hierarchy = [],
+  onCreateSubProject,
   onToggleComplete,
   onDeleteItem,
   onAddTask,
   onUpdateTask,
   onReorderTasks
 }: WorkspaceViewProps) {
+  // Find current hierarchy node to inspect subprojects
+  const currentAreaNode = hierarchy.find(a => a.name === area || a.id === area);
+  const currentProjectNode = currentAreaNode?.projects.find(p => p.name === project || p.id === project);
+  const availableSubProjects = currentProjectNode?.subProjects || [];
+
   // Filter tasks belonging to this Area, Project, or SubProject
   const subProjectItems = items.filter(item => {
     const isAssigned = item.assignment === 'now' || Boolean(item.areaId || item.projectId || item.subProjectId || item.area || item.project || item.subProject);
@@ -62,6 +69,13 @@ export default function WorkspaceView({
   });
 
   // States
+  const [activeSubProjectFilter, setActiveSubProjectFilter] = useState<string>('all');
+  const [showAddSubProjectForm, setShowAddSubProjectForm] = useState(false);
+  const [newSubProjectName, setNewSubProjectName] = useState('');
+  const [isCreatingSubProject, setIsCreatingSubProject] = useState(false);
+  const [subProjectError, setSubProjectError] = useState('');
+  const [newTaskSubProject, setNewTaskSubProject] = useState('');
+
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
   const [newTaskContent, setNewTaskContent] = useState('');
@@ -79,6 +93,31 @@ export default function WorkspaceView({
   const [editContent, setEditContent] = useState('');
   const [editPriority, setEditPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [editDate, setEditDate] = useState('');
+
+  const directTasksCount = subProjectItems.filter(it => !it.subProject && !it.subProjectId).length;
+
+  const handleCreateSubProjectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSubProjectName.trim() || !currentProjectNode?.id) return;
+    const name = newSubProjectName.trim();
+    if (availableSubProjects.some(sp => sp.name.toLowerCase() === name.toLowerCase())) {
+      setSubProjectError('Subproject already exists');
+      return;
+    }
+    setIsCreatingSubProject(true);
+    setSubProjectError('');
+    try {
+      if (onCreateSubProject) {
+        await onCreateSubProject(name, currentProjectNode.id);
+      }
+      setNewSubProjectName('');
+      setShowAddSubProjectForm(false);
+    } catch (err: any) {
+      setSubProjectError(err.message || 'Failed to create subproject');
+    } finally {
+      setIsCreatingSubProject(false);
+    }
+  };
 
   // Drag & Drop handlers
   const handleDragStart = (e: React.DragEvent, id: string) => {
@@ -173,7 +212,7 @@ export default function WorkspaceView({
       assignment: 'now',
       area,
       project: project || undefined,
-      subProject: subProject || undefined,
+      subProject: subProject || (newTaskSubProject ? newTaskSubProject : undefined),
       priority: newTaskPriority,
       scheduledDate: newTaskDate || undefined,
       tags: newTaskTags,
@@ -187,8 +226,17 @@ export default function WorkspaceView({
     setNewTaskPriority('medium');
     setNewTaskDate('');
     setNewTaskTags([]);
+    setNewTaskSubProject('');
     setShowNewForm(false);
   };
+
+  const displayedItems = sortedSubProjectItems.filter(item => {
+    if (activeSubProjectFilter === 'all') return true;
+    if (activeSubProjectFilter === '__direct__') {
+      return !item.subProject && !item.subProjectId;
+    }
+    return item.subProject === activeSubProjectFilter || item.subProjectId === activeSubProjectFilter;
+  });
 
   return (
     <div id="tour-workspace-view" className="w-full max-w-[1440px] mx-auto animate-fade-in">
@@ -219,14 +267,120 @@ export default function WorkspaceView({
           </h2>
         </div>
 
-        <button
-          onClick={() => setShowNewForm(!showNewForm)}
-          className="flex items-center gap-1.5 bg-pill-active text-pill-active-text hover:opacity-90 px-4.5 py-2 rounded-full text-xs font-semibold shadow-md transition-all self-start sm:self-center cursor-pointer"
-        >
-          <Plus size={20} />
-          <span>Add Task</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-center">
+          {project && !subProject && (
+            <button
+              onClick={() => setShowAddSubProjectForm(!showAddSubProjectForm)}
+              className="flex items-center gap-1.5 bg-pill hover:opacity-90 text-textSecondary hover:text-textPrimary px-3.5 py-2 rounded-full text-xs font-semibold shadow-sm transition-all cursor-pointer"
+              title="Add an optional subproject"
+            >
+              <Plus size={16} />
+              <span>Add subproject</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setShowNewForm(!showNewForm)}
+            className="flex items-center gap-1.5 bg-pill-active text-pill-active-text hover:opacity-90 px-4.5 py-2 rounded-full text-xs font-semibold shadow-md transition-all cursor-pointer"
+          >
+            <Plus size={20} />
+            <span>Add Task</span>
+          </button>
+        </div>
       </div>
+
+      {/* Inline Add Subproject Form */}
+      {showAddSubProjectForm && (
+        <form 
+          onSubmit={handleCreateSubProjectSubmit}
+          className="bg-surface border border-border rounded-2xl p-4 mb-6 canvas-shadow animate-scale-in max-w-md"
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-textSecondary">
+              Add subproject
+            </h4>
+            <button
+              type="button"
+              onClick={() => { setShowAddSubProjectForm(false); setSubProjectError(''); }}
+              className="text-textSecondary hover:text-textPrimary p-1 cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <p className="text-xs text-textSecondary mb-3">
+            Organise this project further with an optional subproject.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              autoFocus
+              value={newSubProjectName}
+              onChange={(e) => setNewSubProjectName(e.target.value)}
+              placeholder="Subproject name..."
+              className="flex-1 bg-surfaceSecondary border border-border text-xs px-3 py-2 rounded-xl outline-none text-textPrimary focus:ring-1 focus:ring-accent"
+            />
+            <button
+              type="submit"
+              disabled={isCreatingSubProject || !newSubProjectName.trim()}
+              className="bg-pill-active text-pill-active-text px-4 py-2 rounded-xl text-xs font-semibold hover:opacity-90 disabled:opacity-50 cursor-pointer"
+            >
+              {isCreatingSubProject ? 'Creating...' : 'Create'}
+            </button>
+          </div>
+          {subProjectError && (
+            <p className="text-[11px] text-red-500 font-medium mt-2">{subProjectError}</p>
+          )}
+        </form>
+      )}
+
+      {/* Subprojects Filter Strip - Only shown when project has subprojects */}
+      {project && !subProject && availableSubProjects.length > 0 && (
+        <div className="flex items-center gap-1.5 mb-6 overflow-x-auto hide-scrollbar pb-1">
+          <button
+            type="button"
+            onClick={() => setActiveSubProjectFilter('all')}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer ${
+              activeSubProjectFilter === 'all'
+                ? 'bg-pill-active text-pill-active-text shadow-sm'
+                : 'bg-pill text-textSecondary hover:text-textPrimary'
+            }`}
+          >
+            All Tasks ({subProjectItems.length})
+          </button>
+          {directTasksCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setActiveSubProjectFilter('__direct__')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer ${
+                activeSubProjectFilter === '__direct__'
+                  ? 'bg-pill-active text-pill-active-text shadow-sm'
+                  : 'bg-pill text-textSecondary hover:text-textPrimary'
+              }`}
+            >
+              Direct Tasks ({directTasksCount})
+            </button>
+          )}
+          {availableSubProjects.map(sp => {
+            const count = subProjectItems.filter(it => it.subProject === sp.name || it.subProjectId === sp.id).length;
+            return (
+              <button
+                key={sp.id || sp.name}
+                type="button"
+                onClick={() => setActiveSubProjectFilter(sp.name)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                  activeSubProjectFilter === sp.name
+                    ? 'bg-pill-active text-pill-active-text shadow-sm'
+                    : 'bg-pill text-textSecondary hover:text-textPrimary'
+                }`}
+              >
+                <Folder size={13} className="opacity-70" />
+                <span>{sp.name}</span>
+                <span className="text-[10px] opacity-75 font-mono">({count})</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* New Task Inline Form */}
       {showNewForm && (
@@ -283,6 +437,25 @@ export default function WorkspaceView({
                 rows={3}
               />
             </div>
+
+            {/* Optional Subproject selection inside task creator - only if project has subprojects */}
+            {availableSubProjects.length > 0 && !subProject && (
+              <div>
+                <label className="block text-xs font-semibold text-textSecondary mb-1.5">
+                  Subproject <span className="text-textSecondary/60 font-normal">(Optional)</span>
+                </label>
+                <select
+                  value={newTaskSubProject}
+                  onChange={(e) => setNewTaskSubProject(e.target.value)}
+                  className="w-full bg-surfaceSecondary border border-border text-sm px-4 py-2.5 rounded-xl outline-none text-textPrimary font-medium font-mono focus:ring-1 focus:ring-accent"
+                >
+                  <option value="">None (Directly under {project})</option>
+                  {availableSubProjects.map(sp => (
+                    <option key={sp.id || sp.name} value={sp.name}>{sp.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -350,7 +523,7 @@ export default function WorkspaceView({
       )}
 
       {/* Task Stack List */}
-      {subProjectItems.length === 0 ? (
+      {displayedItems.length === 0 ? (
         <div className="bg-surface border border-border rounded-[28px] canvas-shadow p-12 text-center flex flex-col items-center justify-center min-h-[45vh]">
           <div className="mb-4 inline-flex p-4 rounded-full bg-surfaceSecondary text-textSecondary">
             <Check size={20} />
@@ -359,12 +532,12 @@ export default function WorkspaceView({
             Task Queue Clear!
           </h3>
           <p className="text-sm text-textSecondary max-w-sm">
-            All tasks inside {subProject} are completed. Add a new task to resume.
+            All tasks inside {subProject || (activeSubProjectFilter !== 'all' && activeSubProjectFilter !== '__direct__' ? activeSubProjectFilter : project) || area} are completed. Add a new task to resume.
           </p>
         </div>
       ) : (
         <div className="space-y-4 max-w-4xl mx-auto">
-          {sortedSubProjectItems.map((item) => {
+          {displayedItems.map((item) => {
             const isExpanded = expandedId === item.id;
             const isEditing = editingId === item.id;
 
@@ -437,6 +610,14 @@ export default function WorkspaceView({
                           <span className="inline-flex items-center gap-1 text-[10px] text-textSecondary font-mono font-medium">
                             <Calendar size={20} />
                             <span>{parseLocalDate(item.scheduledDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                          </span>
+                        )}
+
+                        {/* Subproject badge if task has a subproject and viewing at project level */}
+                        {item.subProject && !subProject && (
+                          <span className="inline-flex items-center gap-1 font-mono text-[9px] px-2 py-0.5 rounded-full bg-surfaceSecondary text-textSecondary border border-border">
+                            <Folder size={11} className="opacity-70" />
+                            <span>{item.subProject}</span>
                           </span>
                         )}
                       </div>

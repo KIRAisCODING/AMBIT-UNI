@@ -346,14 +346,26 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                 >
                   {project || 'Project'}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleOpenMenu('SubProject')}
-                  className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer h-[31px] flex items-center justify-center ${subProject ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
-                    }`}
-                >
-                  {subProject || 'SubProject'}
-                </button>
+                {project && subProjectsList.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenMenu('SubProject')}
+                    className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer h-[31px] flex items-center justify-center ${subProject ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
+                      }`}
+                  >
+                    {subProject || 'Subproject (Optional)'}
+                  </button>
+                )}
+                {project && subProjectsList.length === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenMenu('SubProject')}
+                    className="px-3 py-1 text-xs font-medium rounded-full hover:opacity-90 transition-all cursor-pointer h-[31px] flex items-center justify-center text-textSecondary/60 hover:text-textPrimary"
+                    title="Add an optional subproject"
+                  >
+                    + Add subproject
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -575,8 +587,9 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                         </button>
                       ))}
                       {subProjectsList.length === 0 && (
-                        <div className="text-xs text-textSecondary/60 text-center py-6 font-medium">
-                          No Subprojects yet.
+                        <div className="text-xs text-textSecondary/70 text-center py-4 font-medium">
+                          No subprojects yet.
+                          <span className="block text-[11px] text-textSecondary/50 mt-0.5">Organise this project further</span>
                         </div>
                       )}
                       <form onSubmit={handleCreateSubProjectSubmit} className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
@@ -589,7 +602,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                             className="flex-1 bg-surfaceSecondary border border-border text-xs px-3 py-2 rounded-xl outline-none text-textPrimary focus:ring-1 focus:ring-accent"
                           />
                           <button type="submit" className="bg-pill-active text-pill-active-text px-3 py-2 rounded-xl text-xs font-semibold hover:opacity-90 cursor-pointer">
-                            + Create
+                            + Add subproject
                           </button>
                         </div>
                         {errorMsg && <p className="text-[10px] text-red-500 font-medium px-1">{errorMsg}</p>}

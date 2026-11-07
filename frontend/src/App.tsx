@@ -37,7 +37,7 @@ export default function App() {
 
   // Hook integrations
   const { settings, updateSettings, resetData, isAuthenticated, isLoading, logout, user } = useSettings();
-  const { hierarchy, updateHierarchy } = useAreas();
+  const { hierarchy, updateHierarchy, createSubProject } = useAreas();
   const { items, createTask, updateTask, deleteTask, assignTask, reorderTasks, refreshTasks } = useTasks();
   const { habits, addHabit, toggleHabitDay, deleteHabit, updateHabit } = useHabits();
   const { calendarItems, scheduleItem, refreshCalendar } = useCalendar();
@@ -171,6 +171,7 @@ export default function App() {
           subProject={selectedSubProject.subProject}
           items={items}
           hierarchy={hierarchy}
+          onCreateSubProject={createSubProject}
           onToggleComplete={handleToggleComplete}
           onDeleteItem={handleDeleteItem}
           onAddTask={async (newTask) => {
