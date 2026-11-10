@@ -1,8 +1,13 @@
 import { authenticateAndRateLimit } from "@/lib/rateLimit";
 import { prisma } from "@/lib/prisma";
-import { verifyHierarchy } from "@/lib/verifyHierarchy";
+import { verifyAndNormalizeTaskHierarchy } from "@/lib/verifyHierarchy";
+import { CaptureStatus, PromotedType, TaskStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 
+/**
+ * Backward-compatible adapter for frontend callers assigning hierarchy.
+ * Supports updating an existing Task's hierarchy or promoting an active Capture.
+ */
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -10,108 +15,115 @@ export async function PATCH(
   try {
     const { session, errorResponse } = await authenticateAndRateLimit("write");
     if (errorResponse) return errorResponse;
-
+    const userId = session.user.id;
     const { id } = await params;
 
-    // Verify ownership of the inbox item
-    const existingInboxItem = await prisma.inboxItem.findFirst({
-      where: { id, userId: session.user.id },
-    });
-    if (!existingInboxItem) {
-      return NextResponse.json({ error: "Not Found" }, { status: 404 });
-    }
-
-    const body = await req.json();
-
+    const body = await req.json().catch(() => ({}));
     let areaId = body.areaId || null;
     let projectId = body.projectId || null;
     let subProjectId = body.subProjectId || null;
 
+    // Resolve names to IDs if legacy string names are passed
     if (!areaId && body.area) {
-      const area = await prisma.area.findFirst({
-        where: { name: body.area, userId: session.user.id },
-      });
-      if (area) areaId = area.id;
+      const a = await prisma.area.findFirst({ where: { name: body.area, userId } });
+      if (a) areaId = a.id;
     }
-
     if (!projectId && body.project) {
-      const project = await prisma.project.findFirst({
-        where: {
-          name: body.project,
-          userId: session.user.id,
-        },
-      });
-      if (project) {
-        projectId = project.id;
-      } else {
-        return NextResponse.json({ error: "Project not found" }, { status: 400 });
-      }
+      const p = await prisma.project.findFirst({ where: { name: body.project, userId } });
+      if (p) projectId = p.id;
     }
-
     if (!subProjectId && body.subProject) {
-      const subProject = await prisma.subProject.findFirst({
-        where: {
-          name: body.subProject,
-          userId: session.user.id,
-        },
-      });
-      if (subProject) {
-        subProjectId = subProject.id;
-      } else {
-        return NextResponse.json({ error: "SubProject not found" }, { status: 400 });
-      }
+      const sp = await prisma.subProject.findFirst({ where: { name: body.subProject, userId } });
+      if (sp) subProjectId = sp.id;
     }
 
-    const hierarchyCheck = await verifyHierarchy(session.user.id, areaId, projectId, subProjectId);
+    const hierarchyCheck = await verifyAndNormalizeTaskHierarchy(userId, {
+      areaId,
+      projectId,
+      subProjectId,
+    });
+
     if (!hierarchyCheck.isValid) {
       return NextResponse.json({ error: hierarchyCheck.error }, { status: 400 });
     }
 
-    const updateData: any = {
-      assigned: true,
-      areaId,
-      projectId,
-      subProjectId: subProjectId || null,
-    };
+    // Check if ID is a Task first
+    const existingTask = await prisma.task.findFirst({
+      where: { id, userId },
+    });
 
-    if (Array.isArray(body.tags)) {
-      updateData.tags = body.tags.filter((t: any) => typeof t === "string" && t.trim()).map((t: string) => t.trim());
+    if (existingTask) {
+      const updatedTask = await prisma.task.update({
+        where: { id },
+        data: {
+          areaId: hierarchyCheck.normalized.areaId,
+          projectId: hierarchyCheck.normalized.projectId,
+          subProjectId: hierarchyCheck.normalized.subProjectId,
+        },
+        include: {
+          area: true,
+          project: { include: { area: true } },
+          subProject: { include: { project: { include: { area: true } } } },
+          tags: true,
+        },
+      });
+
+      return NextResponse.json({ success: true, task: updatedTask });
     }
 
-    const item = await prisma.inboxItem.update({
-      where: { id },
-      data: updateData,
+    // Check if ID is a Capture
+    const existingCapture = await prisma.capture.findFirst({
+      where: { id, userId },
     });
 
-    const maxTask = await prisma.task.findFirst({
-      where: {
-        userId: session.user.id,
-        inboxItem: {
-          areaId: areaId || null,
-          projectId: projectId || null,
-          subProjectId: subProjectId || null,
-        },
-      },
-      orderBy: {
-        order: "desc",
-      },
-    });
-    const nextOrder = maxTask ? maxTask.order + 1 : 0;
+    if (existingCapture) {
+      const result = await prisma.$transaction(async (tx) => {
+        const maxTask = await tx.task.findFirst({
+          where: {
+            userId,
+            areaId: hierarchyCheck.normalized.areaId,
+            projectId: hierarchyCheck.normalized.projectId,
+            subProjectId: hierarchyCheck.normalized.subProjectId,
+          },
+          orderBy: { order: "desc" },
+        });
+        const order = maxTask ? maxTask.order + 1 : 0;
 
-    await prisma.task.upsert({
-      where: { inboxItemId: id },
-      update: {
-        order: nextOrder,
-      },
-      create: {
-        inboxItemId: id,
-        completed: false,
-        order: nextOrder,
-        userId: session.user.id,
-      },
-    });
+        const task = await tx.task.create({
+          data: {
+            userId,
+            title: existingCapture.content.slice(0, 200),
+            description: existingCapture.content,
+            status: TaskStatus.TODO,
+            order,
+            areaId: hierarchyCheck.normalized.areaId,
+            projectId: hierarchyCheck.normalized.projectId,
+            subProjectId: hierarchyCheck.normalized.subProjectId,
+          },
+          include: {
+            area: true,
+            project: { include: { area: true } },
+            subProject: { include: { project: { include: { area: true } } } },
+            tags: true,
+          },
+        });
 
-    return NextResponse.json(item);
+        const updatedCapture = await tx.capture.update({
+          where: { id },
+          data: {
+            status: CaptureStatus.PROMOTED,
+            promotedType: PromotedType.TASK,
+            promotedId: task.id,
+          },
+        });
+
+        return { task, capture: updatedCapture };
+      });
+
+      return NextResponse.json({ success: true, task: result.task, capture: result.capture });
+    }
+
+    return NextResponse.json({ error: "Entity not found" }, { status: 404 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

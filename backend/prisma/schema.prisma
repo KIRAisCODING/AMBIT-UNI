@@ -3,29 +3,80 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
+// ==========================================
+// CORE DOMAIN ENUMS (Decisions 01, 03, 06, 07, 09)
+// ==========================================
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum Priority {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum HabitFrequency {
+  DAILY
+  WEEKLY
+}
+
+enum CaptureStatus {
+  INBOX
+  PROMOTED
+  TRASHED
+}
+
+enum PromotedType {
+  TASK
+  NOTE
+  HABIT
+  PROJECT
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+// ==========================================
+// AUTHENTICATION & USER MODELS (PRESERVED)
+// ==========================================
 model User {
-  id            String    @id @default(uuid())
+  id            String       @id @default(uuid())
   name          String?
-  email         String    @unique
+  email         String       @unique
   emailVerified DateTime?
   image         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
   accounts      Account[]
   sessions      Session[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  settings      Settings?
+  feedbacks     Feedback[]
 
-  inboxItems    InboxItem[]
+  captures      Capture[]
   areas         Area[]
   projects      Project[]
   subProjects   SubProject[]
   tasks         Task[]
+  notes         Note[]
   habits        Habit[]
-  settings      Settings?
-  feedbacks     Feedback[]
+  habitLogs     HabitLog[]
+  tags          Tag[]
 }
 
 model Account {
@@ -63,84 +114,12 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-model InboxItem {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  content     String
-  type        String
-  assigned    Boolean  @default(false)
-  areaId      String?
-  projectId   String?
-  subProjectId String?
-  tags        String[] @default([])
-  createdAt   DateTime @default(now())
-  task        Task?
-}
-
-model Area {
-  id        String    @id @default(uuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
-  projects  Project[]
-  createdAt DateTime  @default(now())
-}
-
-model Project {
-  id          String       @id @default(uuid())
-  userId      String
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  areaId      String
-  area        Area         @relation(fields: [areaId], references: [id], onDelete: Cascade)
-  subProjects SubProject[]
-  createdAt   DateTime     @default(now())
-}
-
-model SubProject {
-  id         String    @id @default(uuid())
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name       String
-  projectId  String
-  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  createdAt  DateTime  @default(now())
-}
-
-model Task {
-  id           String    @id @default(uuid())
-  userId       String
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  inboxItemId  String    @unique
-  description  String?
-  deadline     DateTime?
-  completed    Boolean   @default(false)
-  completedAt  DateTime?
-  order        Int       @default(0)
-  inboxItem    InboxItem @relation(fields: [inboxItemId], references: [id], onDelete: Cascade)
-}
-
-model Habit {
-  id            String   @id @default(uuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name          String
-  frequency     String   @default("daily")
-  streak        Int      @default(0)
-  longestStreak Int      @default(0)
-  completedDays String[]
-  createdAt     DateTime @default(now())
-  areaId        String?
-  projectId     String?
-  subProjectId  String?
-  notes         String?
-}
-
+// ==========================================
+// SETTINGS & FEEDBACK (PRESERVED)
+// ==========================================
 model Settings {
   id                  String   @id @default(uuid())
   userId              String   @unique
-  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userName            String   @default("Senior Product Designer")
   userEmail           String   @default("architect@ambit.ai")
   theme               String   @default("light")
@@ -148,12 +127,13 @@ model Settings {
   streakAlerts        Boolean  @default(true)
   calendarSync        Boolean  @default(false)
   onboardingCompleted Boolean  @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Feedback {
   id                    String   @id @default(uuid())
   userId                String
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   rating                Int
   clarity               String
   workflowUnderstanding String
@@ -166,6 +146,218 @@ model Feedback {
   missMost              String?  @db.Text
   recommendationScore   Int?
   additionalFeedback    String?  @db.Text
-  route                 String
+  route                 String   @default("/")
   createdAt             DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ==========================================
+// CAPTURES / INBOX (Decision 03)
+// ==========================================
+model Capture {
+  id           String        @id @default(uuid())
+  userId       String
+  content      String        @db.Text
+  status       CaptureStatus @default(INBOX)
+  promotedType PromotedType?
+  promotedId   String?
+  trashedAt    DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([userId, trashedAt])
+  @@map("captures")
+}
+
+// ==========================================
+// HIERARCHY: AREA -> PROJECT -> SUBPROJECT (Decisions 02, 05, 06)
+// ==========================================
+model Area {
+  id          String    @id @default(uuid())
+  userId      String
+  name        String
+  description String?
+  icon        String?
+  order       Int       @default(0)
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projects    Project[]
+  tasks       Task[]
+  notes       Note[]
+  habits      Habit[]
+
+  @@index([userId, archivedAt])
+}
+
+model Project {
+  id          String        @id @default(uuid())
+  userId      String
+  name        String
+  areaId      String
+  description String?
+  status      ProjectStatus @default(ACTIVE)
+  targetDate  DateTime?
+  completedAt DateTime?
+  order       Int           @default(0)
+  archivedAt  DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  area        Area         @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subProjects SubProject[]
+  tasks       Task[]
+  notes       Note[]
+
+  @@index([userId, areaId, status])
+  @@index([userId, targetDate])
+}
+
+model SubProject {
+  id          String    @id @default(uuid())
+  userId      String
+  name        String
+  projectId   String
+  description String?
+  order       Int       @default(0)
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+  notes   Note[]
+
+  @@index([userId, projectId])
+}
+
+// ==========================================
+// FIRST-CLASS TASK (Decisions 01, 07, 10)
+// ==========================================
+model Task {
+  id            String      @id @default(uuid())
+  userId        String
+  title         String      @default("Untitled Task")
+  description   String?     @db.Text
+  status        TaskStatus  @default(TODO)
+  priority      Priority    @default(NONE)
+  dueDate       DateTime?
+  scheduledDate String?
+  completedAt   DateTime?
+  order         Int         @default(0)
+
+  areaId        String?
+  projectId     String?
+  subProjectId  String?
+
+  area          Area?       @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  project       Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  subProject    SubProject? @relation(fields: [subProjectId], references: [id], onDelete: SetNull)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tags          Tag[]       @relation("TaskTags")
+  archivedAt    DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([userId, status, dueDate])
+  @@index([userId, scheduledDate])
+  @@index([userId, areaId, projectId, subProjectId])
+}
+
+// ==========================================
+// FIRST-CLASS NOTE (Decisions 01, 08)
+// ==========================================
+model Note {
+  id           String      @id @default(uuid())
+  userId       String
+  title        String?
+  content      String      @db.Text
+  pinned       Boolean     @default(false)
+
+  areaId       String?
+  projectId    String?
+  subProjectId String?
+
+  area         Area?       @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  project      Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  subProject   SubProject? @relation(fields: [subProjectId], references: [id], onDelete: SetNull)
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tags         Tag[]       @relation("NoteTags")
+  archivedAt   DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([userId, pinned])
+  @@index([userId, areaId, projectId, subProjectId])
+  @@map("notes")
+}
+
+// ==========================================
+// HABIT & ROUTINE TRACKING (Decisions 01, 09)
+// ==========================================
+model Habit {
+  id                String         @id @default(uuid())
+  userId            String
+  name              String
+  description       String?
+  frequency         HabitFrequency @default(DAILY)
+  targetDaysPerWeek Int?
+  startDate         DateTime       @default(now())
+  archivedAt        DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  areaId            String?
+  area              Area?          @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  logs              HabitLog[]
+
+  @@index([userId, archivedAt])
+  @@index([userId, areaId])
+}
+
+model HabitLog {
+  id          String   @id @default(uuid())
+  habitId     String
+  userId      String
+  date        String
+  completedAt DateTime @default(now())
+
+  habit Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, date])
+  @@index([userId, date])
+  @@index([habitId, date])
+  @@map("habit_logs")
+}
+
+// ==========================================
+// GLOBAL TAGS (Decisions 07, 08)
+// ==========================================
+model Tag {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  color     String?
+  createdAt DateTime @default(now())
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks Task[] @relation("TaskTags")
+  notes Note[] @relation("NoteTags")
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("tags")
 }

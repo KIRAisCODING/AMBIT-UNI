@@ -1,7 +1,9 @@
 import { authenticateAndRateLimit } from "@/lib/rateLimit";
 import { prisma } from "@/lib/prisma";
-import { verifyHierarchy } from "@/lib/verifyHierarchy";
+import { CaptureStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
+
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 export async function GET(
   req: Request,
@@ -13,16 +15,28 @@ export async function GET(
     const userId = session.user.id;
     const { id } = await params;
 
-    const item = await prisma.inboxItem.findFirst({
+    const capture = await prisma.capture.findFirst({
       where: { id, userId },
-      include: { task: true },
     });
 
-    if (!item) {
-      return NextResponse.json({ error: "Not Found" }, { status: 404 });
+    if (!capture) {
+      return NextResponse.json({ error: "Capture not found" }, { status: 404 });
     }
 
-    return NextResponse.json(item);
+    return NextResponse.json({
+      id: capture.id,
+      content: capture.content,
+      rawContent: capture.content,
+      status: capture.status,
+      promotedType: capture.promotedType,
+      promotedId: capture.promotedId,
+      trashedAt: capture.trashedAt,
+      createdAt: capture.createdAt.toISOString(),
+      updatedAt: capture.updatedAt.toISOString(),
+      type: "Task",
+      assignment: "later",
+      tags: [],
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -38,104 +52,58 @@ export async function PATCH(
     const userId = session.user.id;
     const { id } = await params;
 
-    const existingItem = await prisma.inboxItem.findFirst({
+    const capture = await prisma.capture.findFirst({
       where: { id, userId },
     });
 
-    if (!existingItem) {
-      return NextResponse.json({ error: "Not Found" }, { status: 404 });
+    if (!capture) {
+      return NextResponse.json({ error: "Capture not found" }, { status: 404 });
     }
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const updateData: any = {};
 
-    const inboxUpdates: any = {};
-    if (body.content !== undefined) inboxUpdates.content = body.content;
-    if (body.type !== undefined) inboxUpdates.type = body.type;
-    if (body.assigned !== undefined) inboxUpdates.assigned = body.assigned;
-    if (body.tags !== undefined) {
-      inboxUpdates.tags = Array.isArray(body.tags)
-        ? body.tags.filter((t: any) => typeof t === "string" && t.trim()).map((t: string) => t.trim())
-        : [];
+    if (body.content !== undefined || body.rawContent !== undefined) {
+      const content = String(body.content || body.rawContent || "").trim();
+      if (!content) {
+        return NextResponse.json(
+          { error: "Content must not be empty" },
+          { status: 400 }
+        );
+      }
+      updateData.content = content;
     }
 
-    const hasHierarchyChange =
-      body.areaId !== undefined ||
-      body.projectId !== undefined ||
-      body.subProjectId !== undefined ||
-      body.area !== undefined ||
-      body.project !== undefined ||
-      body.subProject !== undefined;
-
-    if (hasHierarchyChange) {
-      let targetAreaId = body.areaId !== undefined ? (body.areaId || null) : existingItem.areaId;
-      let targetProjectId = body.projectId !== undefined ? (body.projectId || null) : existingItem.projectId;
-      let targetSubProjectId = body.subProjectId !== undefined ? (body.subProjectId || null) : existingItem.subProjectId;
-
-      if (body.area !== undefined && !body.areaId) {
-        if (body.area) {
-          const a = await prisma.area.findFirst({ where: { name: body.area, userId } });
-          targetAreaId = a ? a.id : null;
-        } else {
-          targetAreaId = null;
-        }
+    if (body.status !== undefined) {
+      const s = String(body.status).toUpperCase();
+      if (s === "TRASHED") {
+        updateData.status = CaptureStatus.TRASHED;
+        updateData.trashedAt = new Date();
+      } else if (s === "INBOX") {
+        updateData.status = CaptureStatus.INBOX;
+        updateData.trashedAt = null;
       }
-
-      if (body.project !== undefined && !body.projectId) {
-        if (body.project) {
-          const p = await prisma.project.findFirst({ where: { name: body.project, userId } });
-          if (p) {
-            targetProjectId = p.id;
-          } else {
-            return NextResponse.json({ error: "Project not found" }, { status: 400 });
-          }
-        } else {
-          targetProjectId = null;
-        }
-      }
-
-      if (body.subProject !== undefined && !body.subProjectId) {
-        if (body.subProject) {
-          const sp = await prisma.subProject.findFirst({ where: { name: body.subProject, userId } });
-          if (sp) {
-            targetSubProjectId = sp.id;
-          } else {
-            return NextResponse.json({ error: "SubProject not found" }, { status: 400 });
-          }
-        } else {
-          targetSubProjectId = null;
-        }
-      }
-
-      // Automatically clear incompatible child hierarchy if parent changed without explicit child provided
-      if (targetAreaId !== existingItem.areaId) {
-        if (body.projectId === undefined && body.project === undefined) {
-          targetProjectId = null;
-          targetSubProjectId = null;
-        } else if (body.subProjectId === undefined && body.subProject === undefined) {
-          targetSubProjectId = null;
-        }
-      } else if (targetProjectId !== existingItem.projectId) {
-        if (body.subProjectId === undefined && body.subProject === undefined) {
-          targetSubProjectId = null;
-        }
-      }
-
-      const hierarchyCheck = await verifyHierarchy(userId, targetAreaId, targetProjectId, targetSubProjectId);
-      if (!hierarchyCheck.isValid) {
-        return NextResponse.json({ error: hierarchyCheck.error }, { status: 400 });
-      }
-
-      inboxUpdates.areaId = targetAreaId;
-      inboxUpdates.projectId = targetProjectId;
-      inboxUpdates.subProjectId = targetSubProjectId;
     }
 
-    const updated = await prisma.inboxItem.update({
+    const updated = await prisma.capture.update({
       where: { id },
-      data: inboxUpdates,
+      data: updateData,
     });
 
-    return NextResponse.json(updated);
+    return NextResponse.json({
+      id: updated.id,
+      content: updated.content,
+      rawContent: updated.content,
+      status: updated.status,
+      promotedType: updated.promotedType,
+      promotedId: updated.promotedId,
+      trashedAt: updated.trashedAt,
+      createdAt: updated.createdAt.toISOString(),
+      updatedAt: updated.updatedAt.toISOString(),
+      type: "Task",
+      assignment: "later",
+      tags: [],
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -151,19 +119,50 @@ export async function DELETE(
     const userId = session.user.id;
     const { id } = await params;
 
-    const existingItem = await prisma.inboxItem.findFirst({
+    const capture = await prisma.capture.findFirst({
       where: { id, userId },
     });
 
-    if (!existingItem) {
-      return NextResponse.json({ error: "Not Found" }, { status: 404 });
+    if (!capture) {
+      return NextResponse.json({ error: "Capture not found" }, { status: 404 });
     }
 
-    await prisma.inboxItem.delete({
+    // Capture must be in trash before permanent deletion
+    if (capture.status !== CaptureStatus.TRASHED) {
+      return NextResponse.json(
+        {
+          error:
+            "Capture must be moved to trash before permanent deletion. Use PATCH /api/inbox/[id]/trash first.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Enforce 30-day retention rule
+    const { searchParams } = new URL(req.url);
+    const force = searchParams.get("force") === "true";
+    const trashedAtTime = capture.trashedAt ? new Date(capture.trashedAt).getTime() : 0;
+    const isRetentionExpired = Date.now() - trashedAtTime >= THIRTY_DAYS_MS;
+
+    if (!isRetentionExpired && !force) {
+      const daysRemaining = Math.max(
+        1,
+        Math.ceil((THIRTY_DAYS_MS - (Date.now() - trashedAtTime)) / (24 * 60 * 60 * 1000))
+      );
+      return NextResponse.json(
+        {
+          error: `Cannot permanently delete: Capture is protected by the 30-day retention policy (${daysRemaining} day(s) remaining). Use ?force=true to override.`,
+          daysRemaining,
+        },
+        { status: 400 }
+      );
+    }
+
+    await prisma.capture.delete({
       where: { id },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, deleted: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

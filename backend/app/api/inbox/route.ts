@@ -1,24 +1,50 @@
 import { authenticateAndRateLimit } from "@/lib/rateLimit";
 import { prisma } from "@/lib/prisma";
-import { verifyHierarchy } from "@/lib/verifyHierarchy";
+import { CaptureStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const { session, errorResponse } = await authenticateAndRateLimit("read");
     if (errorResponse) return errorResponse;
 
-    const items = await prisma.inboxItem.findMany({
-      where: {
-        userId: session.user.id,
-        assigned: false,
-      },
+    const { searchParams } = new URL(req.url);
+    const statusParam = searchParams.get("status")?.toUpperCase();
+
+    const where: any = {
+      userId: session.user.id,
+    };
+
+    if (statusParam === "ALL") {
+      // Return all captures
+    } else if (statusParam === "TRASHED") {
+      where.status = CaptureStatus.TRASHED;
+    } else if (statusParam === "PROMOTED") {
+      where.status = CaptureStatus.PROMOTED;
+    } else {
+      where.status = CaptureStatus.INBOX;
+    }
+
+    const captures = await prisma.capture.findMany({
+      where,
       orderBy: { createdAt: "desc" },
     });
 
-    const mapped = items.map(it => ({
-      ...it,
-      tags: Array.isArray(it.tags) ? it.tags : [],
+    // Format for client with backwards-compatible attributes
+    const mapped = captures.map((c) => ({
+      id: c.id,
+      content: c.content,
+      rawContent: c.content,
+      status: c.status,
+      promotedType: c.promotedType,
+      promotedId: c.promotedId,
+      trashedAt: c.trashedAt,
+      createdAt: c.createdAt.toISOString(),
+      updatedAt: c.updatedAt.toISOString(),
+      // Legacy compatibility
+      type: "Task",
+      assignment: "later",
+      tags: [],
     }));
 
     return NextResponse.json(mapped);
@@ -32,121 +58,49 @@ export async function POST(req: Request) {
     const { session, errorResponse } = await authenticateAndRateLimit("write");
     if (errorResponse) return errorResponse;
 
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const rawContent = (body.content || body.rawContent || "").trim();
 
-    let areaId = body.areaId || null;
-    let projectId = body.projectId || null;
-    let subProjectId = body.subProjectId || null;
-
-    if (!areaId && body.area) {
-      const area = await prisma.area.findFirst({
-        where: { name: body.area, userId: session.user.id },
-      });
-      if (area) areaId = area.id;
+    if (!rawContent) {
+      return NextResponse.json(
+        { error: "Content must not be empty" },
+        { status: 400 }
+      );
     }
 
-    if (!projectId && body.project) {
-      const project = await prisma.project.findFirst({
-        where: {
-          name: body.project,
-          userId: session.user.id,
-        },
-      });
-      if (project) {
-        projectId = project.id;
-      } else {
-        return NextResponse.json({ error: "Project not found" }, { status: 400 });
-      }
+    if (rawContent.length > 10000) {
+      return NextResponse.json(
+        { error: "Content exceeds maximum length of 10,000 characters" },
+        { status: 400 }
+      );
     }
 
-    if (!subProjectId && body.subProject) {
-      const subProject = await prisma.subProject.findFirst({
-        where: {
-          name: body.subProject,
-          userId: session.user.id,
-        },
-      });
-      if (subProject) {
-        subProjectId = subProject.id;
-      } else {
-        return NextResponse.json({ error: "SubProject not found" }, { status: 400 });
-      }
-    }
-
-    const hierarchyCheck = await verifyHierarchy(session.user.id, areaId, projectId, subProjectId);
-    if (!hierarchyCheck.isValid) {
-      return NextResponse.json({ error: hierarchyCheck.error }, { status: 400 });
-    }
-
-    const tags = Array.isArray(body.tags)
-      ? body.tags.filter((t: any) => typeof t === "string" && t.trim()).map((t: string) => t.trim())
-      : [];
-
-    const item = await prisma.inboxItem.create({
+    const capture = await prisma.capture.create({
       data: {
-        content: body.content,
-        type: body.type,
-        assigned: body.assigned ?? false,
-        areaId,
-        projectId,
-        subProjectId,
-        tags,
         userId: session.user.id,
+        content: rawContent,
+        status: CaptureStatus.INBOX,
       },
     });
 
-    if (item.assigned) {
-      const maxTask = await prisma.task.findFirst({
-        where: {
-          userId: session.user.id,
-          inboxItem: {
-            areaId: areaId || null,
-            projectId: projectId || null,
-            subProjectId: subProjectId || null,
-          },
-        },
-        orderBy: {
-          order: "desc",
-        },
-      });
-      const nextOrder = maxTask ? maxTask.order + 1 : 0;
-
-      await prisma.task.create({
-        data: {
-          inboxItemId: item.id,
-          completed: false,
-          order: nextOrder,
-          userId: session.user.id,
-        },
-      });
-    }
-
-    let areaName = body.area || null;
-    let projectName = body.project || null;
-    let subProjectName = body.subProject || null;
-
-    if (!areaName && areaId) {
-      const a = await prisma.area.findUnique({ where: { id: areaId } });
-      if (a) areaName = a.name;
-    }
-    if (!projectName && projectId) {
-      const p = await prisma.project.findUnique({ where: { id: projectId } });
-      if (p) projectName = p.name;
-    }
-    if (!subProjectName && subProjectId) {
-      const sp = await prisma.subProject.findUnique({ where: { id: subProjectId } });
-      if (sp) subProjectName = sp.name;
-    }
-
-    const resolvedItem = {
-      ...item,
-      tags: item.tags,
-      area: areaName,
-      project: projectName,
-      subProject: subProjectName,
-    };
-
-    return NextResponse.json(resolvedItem);
+    return NextResponse.json(
+      {
+        id: capture.id,
+        content: capture.content,
+        rawContent: capture.content,
+        status: capture.status,
+        promotedType: capture.promotedType,
+        promotedId: capture.promotedId,
+        trashedAt: capture.trashedAt,
+        createdAt: capture.createdAt.toISOString(),
+        updatedAt: capture.updatedAt.toISOString(),
+        // Legacy compatibility
+        type: "Task",
+        assignment: "later",
+        tags: [],
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

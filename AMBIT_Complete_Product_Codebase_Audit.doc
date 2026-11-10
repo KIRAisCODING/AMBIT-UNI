@@ -1,0 +1,105 @@
+
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset='utf-8'>
+<title>AMBIT - Complete Product & Codebase Audit</title>
+<style>
+body { font-family: Calibri, 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #1e293b; line-height: 1.5; margin: 40px; }
+h1 { color: #0f172a; font-size: 20pt; border-bottom: 2px solid #2563eb; padding-bottom: 6px; margin-top: 24px; }
+h2 { color: #2563eb; font-size: 14pt; margin-top: 18px; }
+h3 { color: #334155; font-size: 12pt; margin-top: 14px; }
+table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 9.5pt; }
+th { background-color: #f1f5f9; color: #0f172a; font-weight: bold; border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; }
+td { border: 1px solid #cbd5e1; padding: 6px 10px; vertical-align: top; }
+tr:nth-child(even) td { background-color: #f8fafc; }
+.badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 8.5pt; }
+.badge-crit { background-color: #fee2e2; color: #b91c1c; }
+.badge-high { background-color: #ffedd5; color: #c2410c; }
+.badge-med { background-color: #fef3c7; color: #b45309; }
+.badge-low { background-color: #e0e7ff; color: #3730a3; }
+.badge-pass { background-color: #dcfce7; color: #15803d; }
+code { font-family: Consolas, monospace; background-color: #f1f5f9; padding: 2px 4px; border-radius: 3px; font-size: 9pt; }
+ul { margin-top: 4px; margin-bottom: 12px; }
+li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<h1 style='text-align: center; border: none; font-size: 24pt; margin-bottom: 4px;'>AMBIT — Complete Product & Codebase Audit</h1>
+<p style='text-align: center; color: #2563eb; font-size: 13pt; margin-top: 0;'>Architecture, Feature Inventory, Security Analysis, & Modernization Roadmap</p>
+<p style='text-align: center; color: #64748b; font-size: 10pt; margin-bottom: 30px;'>Workspace: <code>AMBIT-UNI</code> | Audit Mode: Strictly Read-Only</p>
+
+<h2>A. Executive Summary</h2>
+<p>This report documents the exhaustive technical, functional, security, and architectural audit of the AMBIT unified productivity platform across all 52 repository source files without performing any database mutations or code changes.</p>
+<h3>1. Overall Technical Condition</h3>
+<p>The system runs a dual-server topology: an Express 4.x server on port 3000 (serving the Vite React SPA, proxying requests, and executing Gemini AI calls) and a Next.js 16 (App Router) server on port 3001 (handling REST API endpoints, NextAuth v5 authentication, and Prisma ORM 6.19.3 with Neon PostgreSQL). Both TypeScript builds compile cleanly with 0 errors. However, there is substantial route and logic duplication between Express and Next.js, along with in-memory rate limiting unsuited for serverless environments.</p>
+<h3>2. Overall Product Condition</h3>
+<p>While AMBIT has clean aesthetics, it diverges from its capture-first vision: there is no landing Dashboard, the Inbox tab only displays assigned items, no real Note model or editor exists, and assigning a Note converts it into a Task.</p>
+
+<h2>B. Complete Feature Inventory</h2>
+<table>
+<thead>
+<tr><th>Feature</th><th>Status</th><th>Frontend</th><th>Backend</th><th>Database</th><th>Issues & Recommendations</th></tr>
+</thead>
+<tbody>
+<tr><td><b>Dashboard</b></td><td><span class='badge badge-crit'>Missing</span></td><td>None (defaults to InboxView)</td><td>No endpoint exists</td><td>None</td><td>No landing dashboard exists. Build a dedicated DashboardView.</td></tr>
+<tr><td><b>Inbox</b></td><td><span class='badge badge-high'>Misconfigured</span></td><td>InboxView.tsx, CaptureComposer.tsx</td><td>Calls /api/tasks (bypasses /api/inbox)</td><td>InboxItem table</td><td>Shows assigned items (assignment === 'now'). Refactor to hold unfiled captures.</td></tr>
+<tr><td><b>Unassigned</b></td><td><span class='badge badge-pass'>Functional</span></td><td>UnassignedView.tsx</td><td>PATCH /api/inbox/[id]/assign</td><td>InboxItem (assigned: false)</td><td>Duplicates true Inbox functionality. Consolidate into true capture inbox.</td></tr>
+<tr><td><b>Areas</b></td><td><span class='badge badge-pass'>Functional</span></td><td>Sidebar.tsx, useAreas.ts</td><td>/api/areas, /api/areas/[id]</td><td>Area table</td><td>syncHierarchy diffs by name, risking data loss on rename. Use ID-based CRUD.</td></tr>
+<tr><td><b>Projects</b></td><td><span class='badge badge-pass'>Functional</span></td><td>Sidebar.tsx, WorkspaceView.tsx</td><td>/api/projects, /api/projects/[id]</td><td>Project table</td><td>Cannot hold notes or documents. Maintain and enhance with workspace resources.</td></tr>
+<tr><td><b>Subprojects</b></td><td><span class='badge badge-pass'>Functional</span></td><td>WorkspaceView.tsx, Sidebar.tsx</td><td>/api/subprojects, /api/subprojects/[id]</td><td>SubProject table</td><td>Completely optional across UI and API. Retain existing optional behavior.</td></tr>
+<tr><td><b>Tasks</b></td><td><span class='badge badge-med'>Coupled</span></td><td>WorkspaceView.tsx, useTasks.ts</td><td>/api/tasks, /api/tasks/reorder</td><td>Task + InboxItem (1:1)</td><td>Tasks strictly require an InboxItem. Decouple Task as a first-class entity.</td></tr>
+<tr><td><b>Habits</b></td><td><span class='badge badge-pass'>Functional</span></td><td>HabitsView.tsx, useHabits.ts</td><td>/api/habits, /api/habits/[id]/toggle</td><td>Habit table</td><td>Streak toggle uses server UTC date, causing timezone misalignment. Pass client date.</td></tr>
+<tr><td><b>Notes</b></td><td><span class='badge badge-crit'>Non-Existent</span></td><td>Filter chip in InboxView only</td><td>No dedicated endpoints</td><td>No Note model</td><td>Notes do not exist as rich documents. Build dedicated Note model & NotesView.</td></tr>
+<tr><td><b>Calendar</b></td><td><span class='badge badge-med'>Partial</span></td><td>CalendarView.tsx, useCalendar.ts</td><td>/api/calendar (read-only)</td><td>Reads Task.deadline</td><td>Deadline viewer only; cannot create events or display habits. Enhance.</td></tr>
+<tr><td><b>Analytics</b></td><td><span class='badge badge-pass'>Functional</span></td><td>AnalyticsView.tsx, useAnalytics.ts</td><td>/api/analytics</td><td>Calculated from DB items</td><td>Full table memory scan on each request. Use Prisma database aggregations.</td></tr>
+<tr><td><b>AI (Gemini)</b></td><td><span class='badge badge-med'>Functional</span></td><td>BrainChat.tsx, CaptureComposer.tsx</td><td>/api/brain/analyze, /api/brain/chat</td><td>None</td><td>Client passes full items array over HTTP. Query DB server-side.</td></tr>
+<tr><td><b>Settings</b></td><td><span class='badge badge-med'>Partial</span></td><td>SettingsView.tsx, useSettings.ts</td><td>/api/settings, /api/settings/reset</td><td>Settings table</td><td>Calendar sync and reminders are cosmetic booleans with no background jobs.</td></tr>
+<tr><td><b>Feedback</b></td><td><span class='badge badge-pass'>Functional</span></td><td>FeedbackModal.tsx</td><td>/api/feedback</td><td>Feedback table</td><td>Fully validated with strict rate limiting. Keep stable implementation.</td></tr>
+</tbody>
+</table>
+
+<h2>C. Database Architecture Report</h2>
+<p>Hosted on Neon PostgreSQL and managed via Prisma ORM 6.19.3. Key findings:</p>
+<ul>
+<li><b>Task Coupling:</b> Task is a 1:1 satellite of InboxItem. It contains no name, areaId, or projectId, borrowing all hierarchy from InboxItem.</li>
+<li><b>Bare String Foreign Keys:</b> <code>InboxItem.areaId/projectId/subProjectId</code> and <code>Habit.areaId/projectId/subProjectId</code> are unconstrained strings without <code>@relation</code> directives.</li>
+<li><b>Unindexed Foreign Keys:</b> No indexes exist on foreign keys or <code>userId</code> across any table, forcing sequential scans.</li>
+<li><b>Missing Models:</b> No Note or CalendarEvent models exist.</li>
+</ul>
+
+<h2>D. API Inventory</h2>
+<p>21 Next.js App Router endpoints in <code>backend/app/api/</code>. Dead routes identified: <code>GET /api/inbox</code>, <code>POST /api/inbox</code>, and <code>/api/inbox/[id]</code> are never called by the frontend.</p>
+
+<h2>E. Security Report</h2>
+<ul>
+<li><b>[CRITICAL] Dependency Vulnerability:</b> <code>shell-quote</code> command injection (GHSA-pqg4-j6r4-53mv) via <code>concurrently</code>.</li>
+<li><b>[HIGH] Stateless Rate Limiting:</b> In-memory Map in <code>backend/lib/rateLimit.ts</code> resets across serverless lambda instances.</li>
+<li><b>[HIGH] Insecure AI Context:</b> <code>/api/brain/chat</code> injects browser-submitted items into system prompts without DB verification.</li>
+<li><b>[MEDIUM] Dormant Insecure CORS:</b> <code>backend/proxy.ts</code> reflects wildcard origin headers.</li>
+<li><b>[MEDIUM] Unbounded Text Inputs:</b> Area/Project creation lacks string length validation.</li>
+</ul>
+
+<h2>F. Product Vision Compatibility (Target Experience Evaluation)</h2>
+<p>Evaluation against the 12 target vision requirements:</p>
+<ul>
+<li><b>1. User logs in & reaches Dashboard:</b> <span class='badge badge-crit'>Contradicted</span> - No Dashboard exists; lands on Inbox tab.</li>
+<li><b>2. Access Inbox, Unassigned, Tasks, Notes, Calendar, Habits, Analytics, Settings:</b> <span class='badge badge-high'>Partial</span> - Dedicated Tasks and Notes tabs missing.</li>
+<li><b>3. Inbox accepts Tasks, Notes, Habits:</b> <span class='badge badge-high'>Partial</span> - Assigning a Note converts it to a Task.</li>
+<li><b>4. Captured objects assignable to Area and Project:</b> <span class='badge badge-pass'>Supported</span> - Works in CaptureComposer and EditModal.</li>
+<li><b>5. Unassigned captures appear under Unassigned:</b> <span class='badge badge-pass'>Supported</span> - Displays unassigned items properly.</li>
+<li><b>6. Areas function as contextual dashboards:</b> <span class='badge badge-high'>Partial</span> - Filters tasks by Area, but lacks project cards/metrics.</li>
+<li><b>7. Projects function as contextual workspaces:</b> <span class='badge badge-high'>Partial</span> - Holds tasks, but cannot store project notes.</li>
+<li><b>8. Subprojects entirely optional:</b> <span class='badge badge-pass'>Supported</span> - Fully optional across all endpoints.</li>
+<li><b>9. Tasks exist under Projects or independently:</b> <span class='badge badge-high'>Partial</span> - Tasks exist under Projects, but assignment modals force hierarchy.</li>
+<li><b>10. Notes become first-class feature:</b> <span class='badge badge-crit'>Unsupported</span> - No Note model exists.</li>
+<li><b>11. Habits independently manageable & organized:</b> <span class='badge badge-pass'>Supported</span> - Standalone model with optional hierarchy.</li>
+<li><b>12. Global & contextual views reference same records:</b> <span class='badge badge-high'>Partial</span> - All views read useTasks(), but unpaginated state creates race conditions.</li>
+</ul>
+
+<h2>G. Modernization Roadmap</h2>
+<p><b>Phase 1: Stability & Security Hardening (P0)</b> - Patch dependencies, fix AI context boundary, correct habit timezone bug, and replace name-based hierarchy diffing.</p>
+<p><b>Phase 2: Schema Evolution & First-Class Notes (P1)</b> - Add model Note and foreign key indexes via <code>npx prisma db push</code> (zero data loss); build NotesView.</p>
+<p><b>Phase 3: Product Vision & Navigation Realignment (P1)</b> - Build DashboardView as landing view; realign Inbox to hold unfiled captures.</p>
+<p><b>Phase 4: Architecture Simplification (P2)</b> - Deprecate Express proxy; run unified Next.js production server.</p>
+</body>
+</html>
