@@ -344,12 +344,15 @@ export default function AnalyticsView({
     // Check if any habits have 0 current streak but had high longest streaks
     const missedHabits = habits.filter(h => h.streak === 0 && (h.longestStreak || 0) > 3);
     missedHabits.forEach(mh => {
+      const areaName: string = typeof mh.area === 'string'
+        ? mh.area
+        : (mh.area && typeof mh.area === 'object' ? mh.area.name : 'Personal');
       alerts.push({
         type: 'Missed Habit',
         title: mh.name,
         desc: `Streak broken. Longest: ${mh.longestStreak} days`,
         days: 4,
-        area: mh.area || 'Personal'
+        area: areaName
       });
     });
 

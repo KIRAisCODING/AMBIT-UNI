@@ -9,11 +9,14 @@ import { useProjects } from './hooks/useProjects';
 import { useTasks } from './hooks/useTasks';
 import { useHabits } from './hooks/useHabits';
 import { useCalendar } from './hooks/useCalendar';
+import { useCaptures } from './hooks/useCaptures';
+import { useNotes } from './hooks/useNotes';
 
 // Child view imports
 import Sidebar from './components/Sidebar';
 import CaptureComposer from './components/CaptureComposer';
 import InboxView from './components/InboxView';
+import NotesView from './components/NotesView';
 import UnassignedView from './components/UnassignedView';
 import HabitsView from './components/HabitsView';
 import CalendarView from './components/CalendarView';
@@ -42,6 +45,8 @@ export default function App() {
   const { items, createTask, updateTask, deleteTask, assignTask, reorderTasks, refreshTasks } = useTasks();
   const { habits, addHabit, toggleHabitDay, deleteHabit, updateHabit } = useHabits();
   const { scheduleTask, refreshCalendar } = useCalendar();
+  const { createCapture, refreshCaptures } = useCaptures();
+  const { createNote } = useNotes();
 
   const [selectedSubProject, setSelectedSubProject] = useState<WorkspaceSelection | null>(null);
 
@@ -49,6 +54,31 @@ export default function App() {
   const setTheme = (t: 'light' | 'dark') => {
     updateSettings({ theme: t });
   };
+
+  // Global Keyboard Navigation (Cmd+K / Ctrl+K and Escape)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd+K or Ctrl+K: Focus Quick Capture / Go to Inbox
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setActiveTab('Inbox');
+        setSelectedSubProject(null);
+        setTimeout(() => {
+          const input = document.getElementById('capture-input') as HTMLTextAreaElement | null;
+          if (input) input.focus();
+        }, 50);
+      }
+
+      // Escape: Close active overlays
+      if (e.key === 'Escape') {
+        if (chatOpen) setChatOpen(false);
+        if (window.innerWidth < 768 && sidebarOpen) setSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [chatOpen, sidebarOpen]);
 
   if (isLoading) {
     return (
@@ -67,13 +97,7 @@ export default function App() {
     newItem: Omit<BrainItem, 'id' | 'createdAt'>, 
     runAI: boolean
   ) => {
-    // Intercept habit capturing from floating composer
-    if (newItem.type === 'Habit') {
-      await addHabit(newItem.content, 'daily', newItem.project, newItem.area, newItem.subProject);
-      return;
-    }
-
-    let finalItem = { ...newItem } as any;
+    let smartSummary: string | undefined = undefined;
 
     if (runAI) {
       try {
@@ -88,15 +112,44 @@ export default function App() {
 
         if (response.ok) {
           const aiData = await response.json();
-          finalItem.smartSummary = aiData.smartSummary;
+          smartSummary = aiData.smartSummary;
         }
       } catch (err) {
         console.warn("AI extraction bypassed due to network or offline mode:", err);
       }
     }
 
-    await createTask(finalItem);
-    await refreshCalendar();
+    if (newItem.assignment === 'now') {
+      // Direct filing to Area / Project
+      if (newItem.type === 'Habit') {
+        await addHabit({ name: newItem.content, areaId: newItem.areaId, area: newItem.area });
+      } else if (newItem.type === 'Note') {
+        await createNote({
+          title: newItem.content,
+          content: newItem.content,
+          areaId: newItem.areaId || null,
+          projectId: newItem.projectId || null,
+          subProjectId: newItem.subProjectId || null,
+          tags: newItem.tags,
+        });
+      } else {
+        await createTask({
+          title: newItem.content,
+          areaId: newItem.areaId || null,
+          projectId: newItem.projectId || null,
+          subProjectId: newItem.subProjectId || null,
+          tags: newItem.tags,
+          priority: 'NONE',
+          status: 'TODO',
+        });
+        await refreshCalendar();
+      }
+    } else {
+      // Default: frictionless Capture Inbox intake
+      const cType = (newItem.type === 'Habit' ? 'HABIT' : newItem.type === 'Note' ? 'NOTE' : 'TASK') as 'TASK' | 'NOTE' | 'HABIT';
+      await createCapture(newItem.content, cType);
+      await refreshCaptures();
+    }
   };
 
   // 2. Complete/Toggle tasks
@@ -210,14 +263,16 @@ export default function App() {
       case 'Inbox':
         return (
           <InboxView 
-            items={items} 
-            onToggleComplete={handleToggleComplete}
-            onDeleteItem={handleDeleteItem}
-            onScheduleItem={handleScheduleItem}
-            onUpdateItem={async (id, updates) => {
-              await updateTask(id, updates);
+            hierarchy={hierarchy}
+            onPromoteSuccess={async () => {
+              await refreshTasks();
               await refreshCalendar();
             }}
+          />
+        );
+      case 'Notes':
+        return (
+          <NotesView 
             hierarchy={hierarchy}
           />
         );
@@ -273,7 +328,7 @@ export default function App() {
     }
   };
 
-  const showCaptureComposer = (activeTab === 'Inbox' || activeTab === 'Habits' || activeTab === 'Unassigned') && !selectedSubProject;
+  const showCaptureComposer = (activeTab === 'Inbox' || activeTab === 'Notes' || activeTab === 'Habits' || activeTab === 'Unassigned') && !selectedSubProject;
 
   return (
     <div className="min-h-screen bg-background text-textPrimary flex flex-col md:flex-row transition-colors duration-300">

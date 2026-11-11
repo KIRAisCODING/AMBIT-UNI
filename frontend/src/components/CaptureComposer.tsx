@@ -203,19 +203,25 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
     if (e) e.preventDefault();
     if (!content.trim()) return;
 
-    if (assignment === 'now' && (!areaId || !projectId)) {
-      alert("Please select an Area and Project to assign now.");
+    if (assignment === 'now' && !areaId && type !== 'Habit') {
+      alert("Please select at least an Area to assign now.");
       return;
     }
 
-    if (projectId && !currentProjectNode) {
+    if (type === 'Habit') {
+      // Habits only belong to an Area or standalone
       setProjectId('');
       setSubProjectId('');
-      return;
-    }
-    if (subProjectId && !currentProjectNode?.subProjects.some(sp => sp.id === subProjectId)) {
-      setSubProjectId('');
-      return;
+    } else {
+      if (projectId && !currentProjectNode) {
+        setProjectId('');
+        setSubProjectId('');
+        return;
+      }
+      if (subProjectId && !currentProjectNode?.subProjects.some(sp => sp.id === subProjectId)) {
+        setSubProjectId('');
+        return;
+      }
     }
 
     setIsAnalyzing(true);
@@ -338,15 +344,17 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                 >
                   {area || 'Area'}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleOpenMenu('Project')}
-                  className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer h-[31px] flex items-center justify-center ${project ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
-                    }`}
-                >
-                  {project || 'Project'}
-                </button>
-                {project && subProjectsList.length > 0 && (
+                {type !== 'Habit' && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenMenu('Project')}
+                    className={`px-3.5 py-1 text-xs font-semibold rounded-full hover:opacity-90 transition-all cursor-pointer h-[31px] flex items-center justify-center ${project ? 'bg-pill-active text-pill-active-text shadow-sm' : 'text-textSecondary/75'
+                      }`}
+                  >
+                    {project || 'Project'}
+                  </button>
+                )}
+                {type !== 'Habit' && project && subProjectsList.length > 0 && (
                   <button
                     type="button"
                     onClick={() => handleOpenMenu('SubProject')}
@@ -356,7 +364,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
                     {subProject || 'Subproject (Optional)'}
                   </button>
                 )}
-                {project && subProjectsList.length === 0 && (
+                {type !== 'Habit' && project && subProjectsList.length === 0 && (
                   <button
                     type="button"
                     onClick={() => handleOpenMenu('SubProject')}
@@ -380,6 +388,7 @@ export default function CaptureComposer({ onCapture, hierarchy, activeTab, onUpd
         <div className="relative flex flex-col">
           {/* Main Textarea */}
           <textarea
+            id="capture-input"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={(e) => {

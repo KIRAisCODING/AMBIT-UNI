@@ -45,3 +45,6 @@ export async function POST(
   }
 }
 
+export const PATCH = POST;
+
+

@@ -1,47 +1,67 @@
 import React, { useState } from 'react';
 import { 
-  Check, Trash2, Calendar, Folder, Tag, Search, Sparkles, Filter, Pencil 
+  Inbox as InboxIcon, Trash2, ArrowUpRight, Search, Sparkles, RefreshCw, RotateCcw, AlertCircle, CheckCircle2, FileText, CheckSquare
 } from 'lucide-react';
-import { BrainItem, ItemType, AreaHierarchy } from '../types';
-import EditInboxItemModal from './EditInboxItemModal';
+import { AreaHierarchy, Capture } from '../types';
+import { useCaptures, PromoteCaptureOptions } from '../hooks/useCaptures';
+import PromoteCaptureModal from './PromoteCaptureModal';
 
 interface InboxViewProps {
-  items: BrainItem[];
-  onToggleComplete: (id: string) => void;
-  onDeleteItem: (id: string) => void;
-  onScheduleItem: (id: string, date: string) => void;
-  onUpdateItem?: (id: string, updates: Partial<BrainItem>) => Promise<void>;
   hierarchy?: AreaHierarchy[];
+  onPromoteSuccess?: () => void;
 }
 
-export default function InboxView({ 
-  items, 
-  onToggleComplete, 
-  onDeleteItem,
-  onScheduleItem,
-  onUpdateItem,
-  hierarchy = []
+export default function InboxView({
+  hierarchy = [],
+  onPromoteSuccess,
 }: InboxViewProps) {
-  const [filterType, setFilterType] = useState<ItemType | 'All'>('All');
+  const {
+    captures,
+    trashedCaptures,
+    isLoading,
+    error,
+    promoteCapture,
+    trashCapture,
+    restoreCapture,
+    deletePermanent,
+    refreshCaptures,
+    fetchTrashed,
+  } = useCaptures();
+
+  const [activeTab, setActiveTab] = useState<'INBOX' | 'TRASH'>('INBOX');
+  const [filterType, setFilterType] = useState<'ALL' | 'TASK' | 'NOTE' | 'HABIT'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [editingItem, setEditingItem] = useState<BrainItem | null>(null);
+  const [selectedCaptureToPromote, setSelectedCaptureToPromote] = useState<Capture | null>(null);
 
-  // Filter items that are assigned (assignment === 'now')
-  const assignedItems = items.filter(it => it.assignment === 'now');
+  const handleTabSwitch = (tab: 'INBOX' | 'TRASH') => {
+    setActiveTab(tab);
+    if (tab === 'TRASH') {
+      fetchTrashed();
+    } else {
+      refreshCaptures();
+    }
+  };
 
-  const filteredItems = assignedItems.filter(item => {
-    const matchesType = filterType === 'All' || item.type === filterType;
-    const matchesSearch = item.content.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          (item.smartSummary && item.smartSummary.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                          item.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                          (item.area && item.area.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                          (item.project && item.project.toLowerCase().includes(searchQuery.toLowerCase()));
+  const currentList = activeTab === 'INBOX' ? captures : trashedCaptures;
+
+  const filteredCaptures = currentList.filter((item) => {
+    const matchesType = filterType === 'ALL' || item.type === filterType;
+    const matchesSearch =
+      item.rawContent.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.smartSummary && item.smartSummary.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesType && matchesSearch;
   });
 
+  const handlePromote = async (id: string, options: PromoteCaptureOptions) => {
+    await promoteCapture(id, options);
+    if (onPromoteSuccess) {
+      onPromoteSuccess();
+    }
+  };
+
   return (
     <div id="tour-inbox-view" className="w-full max-w-[1440px] mx-auto animate-fade-in relative p-6 md:p-8 rounded-[32px] overflow-hidden border border-border/40 shadow-sm">
-      {/* Frosted glass background that gradients towards the top */}
+      {/* Background Gradient */}
       <div 
         className="absolute inset-0 -z-10 bg-gradient-to-t from-surface/95 via-surface/80 to-surface/35 backdrop-blur-md pointer-events-none"
         style={{
@@ -49,208 +69,244 @@ export default function InboxView({
           WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.95) 70%, rgba(0,0,0,0.5) 100%)'
         }}
       />
-      {/* Header with Search and Filter Chips */}
+
+      {/* Header */}
+      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-headline font-bold text-textPrimary flex items-center gap-2">
+              <InboxIcon className="text-accent" size={24} />
+              <span>Capture Inbox</span>
+            </h2>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-surfaceSecondary border border-border text-textSecondary">
+              {captures.length} unprocessed
+            </span>
+          </div>
+          <p className="text-xs text-textSecondary mt-0.5">
+            Your frictionless holding space. Triage and promote into Tasks, Notes, or Habits when you have time.
+          </p>
+        </div>
+
+        {/* View mode toggle (Active Inbox vs Trash) */}
+        <div className="flex items-center gap-2">
+          <div className="bg-surfaceSecondary p-1 rounded-full border border-border flex items-center text-xs">
+            <button
+              onClick={() => handleTabSwitch('INBOX')}
+              className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer ${
+                activeTab === 'INBOX'
+                  ? 'bg-surface text-textPrimary shadow-sm'
+                  : 'text-textSecondary hover:text-textPrimary'
+              }`}
+            >
+              Active Queue ({captures.length})
+            </button>
+            <button
+              onClick={() => handleTabSwitch('TRASH')}
+              className={`px-3 py-1 rounded-full font-semibold transition-all cursor-pointer ${
+                activeTab === 'TRASH'
+                  ? 'bg-surface text-textPrimary shadow-sm'
+                  : 'text-textSecondary hover:text-textPrimary'
+              }`}
+            >
+              Trash
+            </button>
+          </div>
+
+          <button
+            onClick={() => refreshCaptures()}
+            className="p-2 rounded-full hover:bg-surfaceSecondary text-textSecondary hover:text-textPrimary transition-colors cursor-pointer"
+            title="Refresh inbox"
+          >
+            <RefreshCw size={16} />
+          </button>
+        </div>
+      </div>
+
+      {/* Filter and Search Bar */}
       <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Type Filter Chips */}
         <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-1">
-          {(['All', 'Task', 'Idea', 'Note', 'Journal'] as const).map((type) => (
+          {(['ALL', 'TASK', 'NOTE', 'HABIT'] as const).map((type) => (
             <button
               key={type}
               onClick={() => setFilterType(type)}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 shrink-0 cursor-pointer h-[31px] flex items-center justify-center ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer ${
                 filterType === type
                   ? 'bg-pill-active text-pill-active-text shadow-sm'
-                  : 'bg-pill text-textSecondary hover:text-textPrimary hover:opacity-90'
+                  : 'bg-pill text-textSecondary hover:text-textPrimary'
               }`}
             >
-              {type === 'All' ? 'All Content' : `${type}s`}
+              {type === 'ALL' ? 'All Captures' : `${type.charAt(0) + type.slice(1).toLowerCase()}s`}
             </button>
           ))}
         </div>
 
         {/* Search Input */}
-        <div className="relative max-w-md w-full">
+        <div className="relative max-w-xs w-full">
           <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-textSecondary">
-            <Search size={20} />
+            <Search size={16} />
           </span>
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search your brain..."
-            className="w-full bg-surface border border-border focus:ring-1 focus:ring-accent text-sm pl-10 pr-4 py-2 rounded-full placeholder:text-textMuted text-textPrimary outline-none transition-all duration-200"
+            placeholder="Search captures..."
+            className="w-full bg-surface border border-border text-xs pl-9 pr-3 py-2 rounded-full placeholder:text-textMuted text-textPrimary outline-none focus:ring-1 focus:ring-accent"
           />
-          {searchQuery && (
-            <button 
-              onClick={() => setSearchQuery('')}
-              className="absolute inset-y-0 right-0 flex items-center pr-3 text-xs text-textSecondary hover:text-textPrimary"
-            >
-              Clear
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Main Grid Content or Empty State */}
-      {filteredItems.length === 0 ? (
-        <section className="w-full min-h-[55vh] bg-surface border border-border rounded-[28px] canvas-shadow p-8 flex flex-col items-center justify-center text-center relative overflow-hidden">
-          <div 
-            className="absolute inset-0 opacity-[0.03] dark:opacity-[0.1] pointer-events-none select-none" 
-            style={{ 
-              backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', 
-              backgroundSize: '40px 40px' 
-            }}
-          />
+      {error && (
+        <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs flex items-center gap-2">
+          <AlertCircle size={16} className="shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Captures Grid */}
+      {isLoading ? (
+        <div className="flex items-center justify-center min-h-[300px]">
+          <div className="w-6 h-6 border-2 border-textSecondary border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : filteredCaptures.length === 0 ? (
+        <section className="w-full min-h-[350px] bg-surface border border-border rounded-[28px] canvas-shadow p-8 flex flex-col items-center justify-center text-center relative overflow-hidden">
           <div className="max-w-md relative z-10 flex flex-col items-center">
-            <div className="mb-6 inline-flex p-4 rounded-full bg-surfaceSecondary text-textPrimary border border-border">
-              <span className="material-symbols-outlined" style={{ fontSize: '32px' }}>lightbulb</span>
+            <div className="mb-4 inline-flex p-4 rounded-full bg-surfaceSecondary text-textPrimary border border-border">
+              <CheckCircle2 size={32} className="text-emerald-500" />
             </div>
-            <h2 className="text-2xl md:text-3xl font-headline font-bold text-textPrimary mb-3">
-              {searchQuery ? "No matching thoughts found" : "Clear Your Mind"}
-            </h2>
-            <p className="text-sm md:text-base text-textSecondary leading-relaxed">
-              {searchQuery 
-                ? "Try refining your search query, adjusting your filters, or capturing a new memory."
-                : "A distraction-free space for your most important thoughts. Everything you capture here will be organized in your external brain."}
+            <h3 className="text-xl font-headline font-bold text-textPrimary mb-2">
+              {activeTab === 'TRASH'
+                ? 'Trash is empty'
+                : searchQuery
+                ? 'No matching captures found'
+                : 'Mind is Clear'}
+            </h3>
+            <p className="text-xs md:text-sm text-textSecondary leading-relaxed">
+              {activeTab === 'TRASH'
+                ? 'Discarded captures will appear here if you need to recover them.'
+                : searchQuery
+                ? 'Try adjusting your search keywords or filter selection.'
+                : 'Everything you have captured has been organized or filed. Capture your next thought below.'}
             </p>
           </div>
         </section>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredItems.map((item) => (
-            <div 
-              key={item.id}
-              className="group bg-surface border border-border hover:border-textSecondary/40 rounded-[24px] p-6 canvas-shadow hover:shadow-lg transition-all duration-300 relative flex flex-col min-h-[180px] justify-between"
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredCaptures.map((capture) => (
+            <div
+              key={capture.id}
+              className="group bg-surface border border-border hover:border-textSecondary/40 rounded-[24px] p-5 canvas-shadow hover:shadow-lg transition-all duration-200 relative flex flex-col justify-between min-h-[170px]"
             >
-              {/* Card Upper Part */}
               <div>
+                {/* Header: Type Badge & Date */}
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    {/* Item Type Badge */}
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                      item.type === 'Task' ? 'bg-[#ffdad6] dark:bg-red-950/40 text-[#ba1a1a] dark:text-red-200' :
-                      item.type === 'Idea' ? 'bg-pill text-textSecondary' :
-                      item.type === 'Note' ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200' :
-                      'bg-indigo-100 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-200'
-                    }`}>
-                      {item.type}
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
+                        capture.type === 'TASK'
+                          ? 'bg-[#ffdad6] dark:bg-red-950/40 text-[#ba1a1a] dark:text-red-200'
+                          : capture.type === 'NOTE'
+                          ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200'
+                          : 'bg-indigo-100 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-200'
+                      }`}
+                    >
+                      {capture.type === 'TASK' && <CheckSquare size={10} />}
+                      {capture.type === 'NOTE' && <FileText size={10} />}
+                      {capture.type === 'HABIT' && <CheckCircle2 size={10} />}
+                      <span>{capture.type}</span>
                     </span>
-                    {/* Date */}
+
                     <span className="text-[10px] text-textSecondary font-mono">
-                      {new Date(item.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {new Date(capture.createdAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                     </span>
                   </div>
 
-                  {/* Actions Dropdown / Trash */}
-                  <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {onUpdateItem && (
-                      <button
-                        onClick={() => setEditingItem(item)}
-                        className="p-1.5 hover:bg-surfaceSecondary text-textSecondary hover:text-textPrimary rounded-full transition-colors cursor-pointer"
-                        title="Edit item"
-                      >
-                        <Pencil size={15} />
-                      </button>
+                  {/* Actions (Promote / Trash) */}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {activeTab === 'INBOX' ? (
+                      <>
+                        <button
+                          onClick={() => setSelectedCaptureToPromote(capture)}
+                          className="px-2 py-1 rounded-lg bg-accent text-accent-text text-xs font-semibold flex items-center gap-1 hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
+                          title="Promote to first-class entity"
+                        >
+                          <ArrowUpRight size={13} />
+                          <span>Promote</span>
+                        </button>
+                        <button
+                          onClick={() => trashCapture(capture.id)}
+                          className="p-1.5 hover:bg-red-500/10 text-textSecondary hover:text-red-500 rounded-lg transition-colors cursor-pointer"
+                          title="Move to trash"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => restoreCapture(capture.id)}
+                          className="px-2 py-1 rounded-lg bg-surfaceSecondary border border-border text-xs font-semibold text-textPrimary hover:bg-surface flex items-center gap-1 cursor-pointer"
+                          title="Restore to inbox"
+                        >
+                          <RotateCcw size={12} />
+                          <span>Restore</span>
+                        </button>
+                        <button
+                          onClick={() => deletePermanent(capture.id)}
+                          className="p-1.5 hover:bg-red-500/10 text-textSecondary hover:text-red-500 rounded-lg transition-colors cursor-pointer"
+                          title="Delete permanently"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </>
                     )}
-                    {item.type === 'Task' && (
-                      <button
-                        onClick={() => onToggleComplete(item.id)}
-                        className={`p-1.5 rounded-full transition-colors ${
-                          item.completed 
-                            ? 'bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-200' 
-                            : 'hover:bg-surfaceSecondary text-textSecondary'
-                        }`}
-                        title={item.completed ? "Mark incomplete" : "Mark as completed"}
-                      >
-                        <Check size={20} />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => onDeleteItem(item.id)}
-                      className="p-1.5 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 text-textSecondary rounded-full transition-colors cursor-pointer"
-                      title="Delete item"
-                    >
-                      <Trash2 size={20} />
-                    </button>
                   </div>
                 </div>
 
-                {/* Gemini AI Smart Summary */}
-                {item.smartSummary && (
-                  <div className="flex items-center gap-1.5 mb-2.5 text-xs font-semibold text-textPrimary bg-surfaceSecondary border border-border rounded-lg px-2.5 py-1 w-fit">
-                    <Sparkles size={20} className="text-yellow-600 dark:text-yellow-400 shrink-0" />
-                    <span className="line-clamp-1">{item.smartSummary}</span>
+                {/* AI Smart Summary if present */}
+                {capture.smartSummary && (
+                  <div className="flex items-center gap-1.5 mb-2.5 text-xs font-medium text-textPrimary bg-surfaceSecondary border border-border rounded-lg px-2.5 py-1 w-fit">
+                    <Sparkles size={13} className="text-yellow-600 dark:text-yellow-400 shrink-0" />
+                    <span className="line-clamp-1">{capture.smartSummary}</span>
                   </div>
                 )}
 
-                {/* Main Content Text */}
-                <p className={`text-sm md:text-sm text-textPrimary leading-relaxed mb-4 whitespace-pre-line ${
-                  item.completed ? 'line-through text-textSecondary/50' : ''
-                }`}>
-                  {item.content}
+                {/* Raw Content */}
+                <p className="text-xs md:text-sm text-textPrimary leading-relaxed whitespace-pre-line mb-3 font-sans">
+                  {capture.rawContent}
                 </p>
               </div>
 
-              {/* Card Footer Part */}
-              <div className="pt-3 border-t border-border flex flex-col gap-2">
-                {/* Area / Project Path */}
-                {item.area && (
-                  <div className="flex items-center gap-1.5 text-xs text-textSecondary font-medium">
-                    <Folder size={20} className="shrink-0 text-textSecondary/70" />
-                    <span className="hover:text-textPrimary cursor-pointer">{item.area}</span>
-                    {item.project && (
-                      <>
-                        <span className="text-textSecondary/40">/</span>
-                        <span className="hover:text-textPrimary cursor-pointer">{item.project}</span>
-                      </>
-                    )}
-                    {item.subProject && (
-                      <>
-                        <span className="text-textSecondary/40">/</span>
-                        <span className="font-mono text-[10px] hover:text-textPrimary cursor-pointer">{item.subProject}</span>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {/* Tags */}
-                {item.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {item.tags.map((tag) => (
-                      <span 
-                        key={tag}
-                        className="inline-flex items-center text-[10px] font-medium bg-pill text-textSecondary px-2 py-0.5 rounded transition-colors hover:opacity-80"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Calendar Schedule Input (Interactive scheduling!) */}
-                <div className="flex items-center gap-2 mt-1">
-                  <Calendar size={20} className="text-textSecondary/70" />
-                  <input
-                    type="date"
-                    value={item.scheduledDate || ''}
-                    onChange={(e) => onScheduleItem(item.id, e.target.value)}
-                    className="bg-transparent border-none text-[10px] text-textSecondary hover:text-textPrimary p-0 focus:ring-0 outline-none w-fit cursor-pointer font-medium"
-                    title="Schedule for calendar"
-                  />
+              {/* Bottom Quick Triage button */}
+              {activeTab === 'INBOX' && (
+                <div className="pt-2 border-t border-border flex items-center justify-between">
+                  <span className="text-[10px] text-textSecondary">Unprocessed</span>
+                  <button
+                    onClick={() => setSelectedCaptureToPromote(capture)}
+                    className="text-xs text-accent font-semibold flex items-center gap-1 hover:underline cursor-pointer"
+                  >
+                    <span>Organize</span>
+                    <ArrowUpRight size={12} />
+                  </button>
                 </div>
-              </div>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {/* Edit Item Modal */}
-      {editingItem && onUpdateItem && (
-        <EditInboxItemModal
-          item={editingItem}
+      {/* Promotion Modal */}
+      {selectedCaptureToPromote && (
+        <PromoteCaptureModal
+          capture={selectedCaptureToPromote}
           hierarchy={hierarchy}
-          onSave={onUpdateItem}
-          onClose={() => setEditingItem(null)}
+          onPromote={handlePromote}
+          onClose={() => setSelectedCaptureToPromote(null)}
         />
       )}
     </div>

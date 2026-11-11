@@ -1,122 +1,109 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { AreaHierarchy } from '../types';
+import { apiClient } from '../lib/apiClient';
 
 export function useAreas() {
   const [hierarchy, setHierarchy] = useState<AreaHierarchy[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const rawHierarchyRef = useRef<any[]>([]);
 
-  const fetchHierarchy = async () => {
+  const fetchHierarchy = useCallback(async () => {
     try {
-      const res = await fetch('/api/sidebar');
-      if (res.ok) {
-        const data = await res.json();
-        rawHierarchyRef.current = data;
-        const mapped = data.map((area: any) => ({
-          id: area.id,
-          name: area.name,
-          projects: (area.projects || []).map((proj: any) => ({
-            id: proj.id,
-            areaId: area.id,
-            name: proj.name,
-            subProjects: (proj.subProjects || []).map((sp: any) => ({
-              id: sp.id,
-              projectId: proj.id,
-              name: sp.name,
-            })),
+      setIsLoading(true);
+      setError(null);
+      const data = await apiClient.get<any[]>('/api/sidebar');
+      rawHierarchyRef.current = data || [];
+      const mapped: AreaHierarchy[] = (data || []).map((area: any) => ({
+        id: area.id,
+        name: area.name,
+        projects: (area.projects || []).map((proj: any) => ({
+          id: proj.id,
+          areaId: area.id,
+          name: proj.name,
+          subProjects: (proj.subProjects || []).map((sp: any) => ({
+            id: sp.id,
+            projectId: proj.id,
+            name: sp.name,
           })),
-        }));
-        setHierarchy(mapped);
-      }
-    } catch (err) {
+        })),
+      }));
+      setHierarchy(mapped);
+    } catch (err: any) {
       console.error('Failed to load hierarchy:', err);
+      setError(err.message || 'Failed to load hierarchy');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchHierarchy();
-  }, []);
+  }, [fetchHierarchy]);
 
   const createArea = async (name: string) => {
-    await fetch('/api/areas', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    });
-    await fetchHierarchy();
+    try {
+      await apiClient.post('/api/areas', { name });
+      await fetchHierarchy();
+    } catch (err: any) {
+      console.error('Failed to create area:', err);
+      throw err;
+    }
   };
 
-  const deleteArea = async (id: string) => {
+  const deleteArea = async (id: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const res = await fetch(`/api/areas/${id}`, {
-        method: 'DELETE',
-      });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        if (res.status === 409 && errorData.error) {
-          alert(errorData.error);
-        }
-        return { success: false, ...errorData };
-      }
+      await apiClient.delete(`/api/areas/${id}`);
       await fetchHierarchy();
       return { success: true };
     } catch (err: any) {
       console.error('Failed to delete area:', err);
-      return { success: false, error: err.message };
+      return { success: false, error: err.message || 'Failed to delete area' };
     }
   };
 
   const createProject = async (name: string, areaId: string) => {
-    await fetch('/api/projects', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, areaId }),
-    });
-    await fetchHierarchy();
+    try {
+      await apiClient.post('/api/projects', { name, areaId });
+      await fetchHierarchy();
+    } catch (err: any) {
+      console.error('Failed to create project:', err);
+      throw err;
+    }
   };
 
-  const deleteProject = async (id: string, policy: 'preserve' | 'destructive' = 'preserve') => {
+  const deleteProject = async (
+    id: string,
+    policy: 'preserve' | 'destructive' = 'preserve'
+  ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const res = await fetch(`/api/projects/${id}?policy=${policy}`, {
-        method: 'DELETE',
-      });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        return { success: false, ...errorData };
-      }
+      await apiClient.delete(`/api/projects/${id}`, { params: { policy } });
       await fetchHierarchy();
       return { success: true };
     } catch (err: any) {
       console.error('Failed to delete project:', err);
-      return { success: false, error: err.message };
+      return { success: false, error: err.message || 'Failed to delete project' };
     }
   };
 
   const createSubProject = async (name: string, projectId: string) => {
-    await fetch('/api/subprojects', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, projectId }),
-    });
-    await fetchHierarchy();
+    try {
+      await apiClient.post('/api/subprojects', { name, projectId });
+      await fetchHierarchy();
+    } catch (err: any) {
+      console.error('Failed to create subproject:', err);
+      throw err;
+    }
   };
 
-  const deleteSubProject = async (id: string) => {
+  const deleteSubProject = async (id: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const res = await fetch(`/api/subprojects/${id}`, {
-        method: 'DELETE',
-      });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        return { success: false, ...errorData };
-      }
+      await apiClient.delete(`/api/subprojects/${id}`);
       await fetchHierarchy();
       return { success: true };
     } catch (err: any) {
       console.error('Failed to delete subproject:', err);
-      return { success: false, error: err.message };
+      return { success: false, error: err.message || 'Failed to delete subproject' };
     }
   };
 
@@ -136,6 +123,7 @@ export function useAreas() {
   return {
     hierarchy,
     isLoading,
+    error,
     createArea,
     deleteArea,
     createProject,
@@ -155,8 +143,8 @@ async function syncHierarchy(
 ) {
   // 1. Check for deleted Areas
   for (const oldArea of oldHierarchy) {
-    if (!newHierarchy.some(a => a.name === oldArea.name)) {
-      const rawArea = rawHierarchy.find(a => a.name === oldArea.name);
+    if (!newHierarchy.some((a) => a.name === oldArea.name)) {
+      const rawArea = rawHierarchy.find((a) => a.name === oldArea.name);
       if (rawArea) await actions.deleteArea(rawArea.id);
       return;
     }
@@ -164,7 +152,7 @@ async function syncHierarchy(
 
   // 2. Check for created Areas
   for (const newArea of newHierarchy) {
-    if (!oldHierarchy.some(a => a.name === newArea.name)) {
+    if (!oldHierarchy.some((a) => a.name === newArea.name)) {
       await actions.createArea(newArea.name);
       return;
     }
@@ -172,15 +160,15 @@ async function syncHierarchy(
 
   // 3. Check for Project changes inside matched Areas
   for (const newArea of newHierarchy) {
-    const oldArea = oldHierarchy.find(a => a.name === newArea.name);
+    const oldArea = oldHierarchy.find((a) => a.name === newArea.name);
     if (!oldArea) continue;
 
-    const rawArea = rawHierarchy.find(a => a.name === newArea.name);
+    const rawArea = rawHierarchy.find((a) => a.name === newArea.name);
     if (!rawArea) continue;
 
     // Check for deleted Projects
     for (const oldProj of oldArea.projects) {
-      if (!newArea.projects.some(p => p.name === oldProj.name)) {
+      if (!newArea.projects.some((p) => p.name === oldProj.name)) {
         const rawProj = rawArea.projects?.find((p: any) => p.name === oldProj.name);
         if (rawProj) await actions.deleteProject(rawProj.id);
         return;
@@ -189,7 +177,7 @@ async function syncHierarchy(
 
     // Check for created Projects
     for (const newProj of newArea.projects) {
-      if (!oldArea.projects.some(p => p.name === newProj.name)) {
+      if (!oldArea.projects.some((p) => p.name === newProj.name)) {
         await actions.createProject(newProj.name, rawArea.id);
         return;
       }
@@ -197,7 +185,7 @@ async function syncHierarchy(
 
     // Check for SubProject changes inside matched Projects
     for (const newProj of newArea.projects) {
-      const oldProj = oldArea.projects.find(p => p.name === newProj.name);
+      const oldProj = oldArea.projects.find((p) => p.name === newProj.name);
       if (!oldProj) continue;
 
       const rawProj = rawArea.projects?.find((p: any) => p.name === newProj.name);
@@ -205,7 +193,7 @@ async function syncHierarchy(
 
       // Check for deleted SubProjects
       for (const oldSub of oldProj.subProjects) {
-        if (!newProj.subProjects.some(subProject => subProject.name === oldSub.name)) {
+        if (!newProj.subProjects.some((subProject) => subProject.name === oldSub.name)) {
           const rawSub = rawProj.subProjects?.find((sp: any) => sp.name === oldSub.name);
           if (rawSub) await actions.deleteSubProject(rawSub.id);
           return;
@@ -214,7 +202,7 @@ async function syncHierarchy(
 
       // Check for created SubProjects
       for (const newSub of newProj.subProjects) {
-        if (!oldProj.subProjects.some(subProject => subProject.name === newSub.name)) {
+        if (!oldProj.subProjects.some((subProject) => subProject.name === newSub.name)) {
           await actions.createSubProject(newSub.name, rawProj.id);
           return;
         }

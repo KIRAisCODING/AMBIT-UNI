@@ -1,27 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { DashboardResponse } from '../types';
+import { apiClient } from '../lib/apiClient';
+import { useQueryCoordinator, useQuerySubscriber } from '../context/QueryCoordinator';
 
 export function useDashboard() {
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { invalidateQueries } = useQueryCoordinator();
 
   const fetchDashboard = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-      const res = await fetch(`/api/dashboard?timezone=${encodeURIComponent(userTimeZone)}`, {
-        headers: {
-          'x-timezone': userTimeZone,
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error(`Failed to load dashboard: ${res.statusText}`);
-      }
-
-      const data: DashboardResponse = await res.json();
+      const data = await apiClient.get<DashboardResponse>('/api/dashboard');
       setDashboard(data);
     } catch (err: any) {
       console.error('Error fetching dashboard briefing:', err);
@@ -34,6 +26,9 @@ export function useDashboard() {
   useEffect(() => {
     fetchDashboard();
   }, [fetchDashboard]);
+
+  // Subscribe to external cache invalidations
+  useQuerySubscriber('dashboard', fetchDashboard);
 
   // Inline Task Complete Toggle (Optimistic)
   const toggleTaskComplete = async (taskId: string) => {
@@ -57,16 +52,13 @@ export function useDashboard() {
     });
 
     try {
-      await fetch(`/api/tasks/${taskId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      // Silent refresh to update counts and project progress
-      fetchDashboard();
+      await apiClient.patch(`/api/tasks/${taskId}`, { status: newStatus });
+      // Invalidate cross-view queries so Tasks, Calendar, and Analytics stay in sync
+      invalidateQueries(['tasks', 'calendar', 'analytics']);
+      await fetchDashboard();
     } catch (err) {
       console.error('Failed to toggle task completion:', err);
-      fetchDashboard();
+      await fetchDashboard();
     }
   };
 
@@ -94,18 +86,12 @@ export function useDashboard() {
     });
 
     try {
-      const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-      await fetch(`/api/habits/${habitId}/toggle`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-timezone': userTimeZone,
-        },
-      });
-      fetchDashboard();
+      await apiClient.post(`/api/habits/${habitId}/toggle`, {});
+      invalidateQueries(['habits', 'calendar', 'analytics']);
+      await fetchDashboard();
     } catch (err) {
       console.error('Failed to toggle habit:', err);
-      fetchDashboard();
+      await fetchDashboard();
     }
   };
 
@@ -118,4 +104,3 @@ export function useDashboard() {
     toggleHabitToday,
   };
 }
-

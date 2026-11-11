@@ -184,78 +184,83 @@ export async function POST(
         : [];
 
       // Atomic Transaction: Concurrency-Safe Status Claim & Task Creation
-      const result = await prisma.$transaction(async (tx) => {
-        // Atomic status claim: ensure exactly one transaction transitions capture out of INBOX
-        const claim = await tx.capture.updateMany({
-          where: { id: captureId, userId, status: CaptureStatus.INBOX },
-          data: {
-            status: CaptureStatus.PROMOTED,
-            promotedType: PromotedType.TASK,
-          },
-        });
-
-        if (claim.count === 0) {
-          const err: any = new Error("ALREADY_PROMOTED_OR_CLAIMED");
-          err.code = "CONCURRENCY_CLAIM_FAILED";
-          throw err;
-        }
-
-        // Find highest order in target placement
-        const maxTask = await tx.task.findFirst({
-          where: {
-            userId,
-            areaId: hierarchyCheck.normalized.areaId,
-            projectId: hierarchyCheck.normalized.projectId,
-            subProjectId: hierarchyCheck.normalized.subProjectId,
-          },
-          orderBy: { order: "desc" },
-        });
-        const order = maxTask ? maxTask.order + 1 : 0;
-
-        // Upsert tags
-        const tagConnectors = [];
-        for (const name of tagNames) {
-          const tag = await tx.tag.upsert({
-            where: { userId_name: { userId, name } },
-            update: {},
-            create: { userId, name },
+      const result = await prisma.$transaction(
+        async (tx) => {
+          // Atomic status claim: ensure exactly one transaction transitions capture out of INBOX
+          const claim = await tx.capture.updateMany({
+            where: { id: captureId, userId, status: CaptureStatus.INBOX },
+            data: {
+              status: CaptureStatus.PROMOTED,
+              promotedType: PromotedType.TASK,
+            },
           });
-          tagConnectors.push({ id: tag.id });
-        }
 
-        const task = await tx.task.create({
-          data: {
-            userId,
-            title,
-            description: body.description || null,
-            status,
-            priority,
-            dueDate,
-            scheduledDate,
-            completedAt,
-            order,
-            areaId: hierarchyCheck.normalized.areaId,
-            projectId: hierarchyCheck.normalized.projectId,
-            subProjectId: hierarchyCheck.normalized.subProjectId,
-            tags: tagConnectors.length > 0 ? { connect: tagConnectors } : undefined,
-          },
-          include: {
-            area: true,
-            project: { include: { area: true } },
-            subProject: { include: { project: { include: { area: true } } } },
-            tags: true,
-          },
-        });
+          if (claim.count === 0) {
+            const err: any = new Error("ALREADY_PROMOTED_OR_CLAIMED");
+            err.code = "CONCURRENCY_CLAIM_FAILED";
+            throw err;
+          }
 
-        const updatedCapture = await tx.capture.update({
-          where: { id: captureId },
-          data: {
-            promotedId: task.id,
-          },
-        });
+          // Find highest order in target placement
+          const maxTask = await tx.task.findFirst({
+            where: {
+              userId,
+              areaId: hierarchyCheck.normalized.areaId,
+              projectId: hierarchyCheck.normalized.projectId,
+              subProjectId: hierarchyCheck.normalized.subProjectId,
+            },
+            orderBy: { order: "desc" },
+          });
+          const order = maxTask ? maxTask.order + 1 : 0;
 
-        return { task, capture: updatedCapture };
-      });
+          // Upsert tags concurrently
+          const tagConnectors = await Promise.all(
+            tagNames.map((name) =>
+              tx.tag
+                .upsert({
+                  where: { userId_name: { userId, name } },
+                  update: {},
+                  create: { userId, name },
+                })
+                .then((tag) => ({ id: tag.id }))
+            )
+          );
+
+          const task = await tx.task.create({
+            data: {
+              userId,
+              title,
+              description: body.description || null,
+              status,
+              priority,
+              dueDate,
+              scheduledDate,
+              completedAt,
+              order,
+              areaId: hierarchyCheck.normalized.areaId,
+              projectId: hierarchyCheck.normalized.projectId,
+              subProjectId: hierarchyCheck.normalized.subProjectId,
+              tags: tagConnectors.length > 0 ? { connect: tagConnectors } : undefined,
+            },
+            include: {
+              area: true,
+              project: { include: { area: true } },
+              subProject: { include: { project: { include: { area: true } } } },
+              tags: true,
+            },
+          });
+
+          const updatedCapture = await tx.capture.update({
+            where: { id: captureId },
+            data: {
+              promotedId: task.id,
+            },
+          });
+
+          return { task, capture: updatedCapture };
+        },
+        { maxWait: 10000, timeout: 20000 }
+      );
 
       return NextResponse.json({
         success: true,
@@ -289,57 +294,63 @@ export async function POST(
         : [];
 
       // Atomic Transaction: Concurrency-Safe Status Claim & Note Creation
-      const result = await prisma.$transaction(async (tx) => {
-        // Atomic status claim
-        const claim = await tx.capture.updateMany({
-          where: { id: captureId, userId, status: CaptureStatus.INBOX },
-          data: {
-            status: CaptureStatus.PROMOTED,
-            promotedType: PromotedType.NOTE,
-          },
-        });
-
-        if (claim.count === 0) {
-          const err: any = new Error("ALREADY_PROMOTED_OR_CLAIMED");
-          err.code = "CONCURRENCY_CLAIM_FAILED";
-          throw err;
-        }
-
-        const tagConnectors = [];
-        for (const name of tagNames) {
-          const tag = await tx.tag.upsert({
-            where: { userId_name: { userId, name } },
-            update: {},
-            create: { userId, name },
+      const result = await prisma.$transaction(
+        async (tx) => {
+          // Atomic status claim
+          const claim = await tx.capture.updateMany({
+            where: { id: captureId, userId, status: CaptureStatus.INBOX },
+            data: {
+              status: CaptureStatus.PROMOTED,
+              promotedType: PromotedType.NOTE,
+            },
           });
-          tagConnectors.push({ id: tag.id });
-        }
 
-        const note = await tx.note.create({
-          data: {
-            userId,
-            title,
-            content,
-            pinned: Boolean(body.pinned),
-            areaId: hierarchyCheck.normalized.areaId,
-            projectId: hierarchyCheck.normalized.projectId,
-            subProjectId: hierarchyCheck.normalized.subProjectId,
-            tags: tagConnectors.length > 0 ? { connect: tagConnectors } : undefined,
-          },
-          include: {
-            tags: true,
-          },
-        });
+          if (claim.count === 0) {
+            const err: any = new Error("ALREADY_PROMOTED_OR_CLAIMED");
+            err.code = "CONCURRENCY_CLAIM_FAILED";
+            throw err;
+          }
 
-        const updatedCapture = await tx.capture.update({
-          where: { id: captureId },
-          data: {
-            promotedId: note.id,
-          },
-        });
+          // Upsert tags concurrently
+          const tagConnectors = await Promise.all(
+            tagNames.map((name) =>
+              tx.tag
+                .upsert({
+                  where: { userId_name: { userId, name } },
+                  update: {},
+                  create: { userId, name },
+                })
+                .then((tag) => ({ id: tag.id }))
+            )
+          );
 
-        return { note, capture: updatedCapture };
-      });
+          const note = await tx.note.create({
+            data: {
+              userId,
+              title,
+              content,
+              pinned: Boolean(body.pinned),
+              areaId: hierarchyCheck.normalized.areaId,
+              projectId: hierarchyCheck.normalized.projectId,
+              subProjectId: hierarchyCheck.normalized.subProjectId,
+              tags: tagConnectors.length > 0 ? { connect: tagConnectors } : undefined,
+            },
+            include: {
+              tags: true,
+            },
+          });
+
+          const updatedCapture = await tx.capture.update({
+            where: { id: captureId },
+            data: {
+              promotedId: note.id,
+            },
+          });
+
+          return { note, capture: updatedCapture };
+        },
+        { maxWait: 10000, timeout: 20000 }
+      );
 
       return NextResponse.json({
         success: true,
@@ -350,7 +361,7 @@ export async function POST(
 
     // 5. Target: HABIT
     if (target === "HABIT") {
-      const name = (body.name || capture.content).trim().slice(0, 100);
+      const name = (body.name || body.title || capture.content).trim().slice(0, 100);
       if (!name) {
         return NextResponse.json(
           { error: "Habit name must not be empty" },
@@ -389,42 +400,45 @@ export async function POST(
       }
 
       // Atomic Transaction: Concurrency-Safe Status Claim & Habit Creation
-      const result = await prisma.$transaction(async (tx) => {
-        // Atomic status claim
-        const claim = await tx.capture.updateMany({
-          where: { id: captureId, userId, status: CaptureStatus.INBOX },
-          data: {
-            status: CaptureStatus.PROMOTED,
-            promotedType: PromotedType.HABIT,
-          },
-        });
+      const result = await prisma.$transaction(
+        async (tx) => {
+          // Atomic status claim
+          const claim = await tx.capture.updateMany({
+            where: { id: captureId, userId, status: CaptureStatus.INBOX },
+            data: {
+              status: CaptureStatus.PROMOTED,
+              promotedType: PromotedType.HABIT,
+            },
+          });
 
-        if (claim.count === 0) {
-          const err: any = new Error("ALREADY_PROMOTED_OR_CLAIMED");
-          err.code = "CONCURRENCY_CLAIM_FAILED";
-          throw err;
-        }
+          if (claim.count === 0) {
+            const err: any = new Error("ALREADY_PROMOTED_OR_CLAIMED");
+            err.code = "CONCURRENCY_CLAIM_FAILED";
+            throw err;
+          }
 
-        const habit = await tx.habit.create({
-          data: {
-            userId,
-            name,
-            description: body.description || null,
-            frequency,
-            targetDaysPerWeek,
-            areaId: body.areaId || null,
-          },
-        });
+          const habit = await tx.habit.create({
+            data: {
+              userId,
+              name,
+              description: body.description || null,
+              frequency,
+              targetDaysPerWeek,
+              areaId: body.areaId || null,
+            },
+          });
 
-        const updatedCapture = await tx.capture.update({
-          where: { id: captureId },
-          data: {
-            promotedId: habit.id,
-          },
-        });
+          const updatedCapture = await tx.capture.update({
+            where: { id: captureId },
+            data: {
+              promotedId: habit.id,
+            },
+          });
 
-        return { habit, capture: updatedCapture };
-      });
+          return { habit, capture: updatedCapture };
+        },
+        { maxWait: 10000, timeout: 20000 }
+      );
 
       return NextResponse.json({
         success: true,

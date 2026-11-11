@@ -1,33 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CalendarResponse } from '../types';
+import { apiClient } from '../lib/apiClient';
+import { useQueryCoordinator, useQuerySubscriber } from '../context/QueryCoordinator';
 
 export function useCalendar(initialStart?: string, initialEnd?: string) {
   const [calendarData, setCalendarData] = useState<CalendarResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { invalidateQueries } = useQueryCoordinator();
 
   const fetchCalendar = useCallback(async (start?: string, end?: string) => {
     try {
       setIsLoading(true);
       setError(null);
-      const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-      
-      const queryParams = new URLSearchParams();
-      if (start) queryParams.set('start', start);
-      if (end) queryParams.set('end', end);
-      queryParams.set('timeZone', userTimeZone);
+      const params: any = {};
+      if (start) params.start = start;
+      if (end) params.end = end;
 
-      const res = await fetch(`/api/calendar?${queryParams.toString()}`, {
-        headers: {
-          'x-timezone': userTimeZone,
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error(`Failed to load calendar data: ${res.statusText}`);
-      }
-
-      const data: CalendarResponse = await res.json();
+      const data = await apiClient.get<CalendarResponse>('/api/calendar', { params });
       setCalendarData(data);
     } catch (err: any) {
       console.error('Error fetching calendar commitments:', err);
@@ -41,20 +31,32 @@ export function useCalendar(initialStart?: string, initialEnd?: string) {
     fetchCalendar(initialStart, initialEnd);
   }, [fetchCalendar, initialStart, initialEnd]);
 
+  // Subscribe to external cache invalidations
+  useQuerySubscriber('calendar', () => {
+    fetchCalendar(calendarData?.startDate || initialStart, calendarData?.endDate || initialEnd);
+  });
+
   // Schedule or Reschedule a Task (Updates scheduledDate only, leaving dueDate untouched)
   const scheduleTask = async (taskId: string, scheduledDate: string | null) => {
     try {
-      const res = await fetch(`/api/tasks/${taskId}/schedule`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scheduledDate }),
-      });
-      if (!res.ok) {
-        throw new Error('Failed to update task schedule');
-      }
+      await apiClient.patch(`/api/tasks/${taskId}/schedule`, { scheduledDate });
+      // Optimistically update calendar data if task exists in calendar
       if (calendarData) {
-        await fetchCalendar(calendarData.startDate, calendarData.endDate);
+        setCalendarData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            tasks: prev.tasks.map((t) =>
+              t.id === taskId ? { ...t, scheduledDate } : t
+            ),
+            unscheduledTasks: scheduledDate
+              ? prev.unscheduledTasks.filter((t) => t.id !== taskId)
+              : prev.unscheduledTasks,
+          };
+        });
       }
+      invalidateQueries(['tasks', 'dashboard']);
+      await fetchCalendar(calendarData?.startDate, calendarData?.endDate);
     } catch (err) {
       console.error('Error in scheduleTask:', err);
       throw err;
@@ -65,11 +67,8 @@ export function useCalendar(initialStart?: string, initialEnd?: string) {
   const toggleTaskComplete = async (taskId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'COMPLETED' ? 'TODO' : 'COMPLETED';
     try {
-      await fetch(`/api/tasks/${taskId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
+      await apiClient.patch(`/api/tasks/${taskId}`, { status: newStatus });
+      invalidateQueries(['tasks', 'dashboard', 'analytics']);
       if (calendarData) {
         await fetchCalendar(calendarData.startDate, calendarData.endDate);
       }
@@ -82,15 +81,8 @@ export function useCalendar(initialStart?: string, initialEnd?: string) {
   // Toggle Habit for a specific date
   const toggleHabitDay = async (habitId: string, dateStr: string) => {
     try {
-      const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-      await fetch(`/api/habits/${habitId}/toggle`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-timezone': userTimeZone,
-        },
-        body: JSON.stringify({ date: dateStr }),
-      });
+      await apiClient.post(`/api/habits/${habitId}/toggle`, { date: dateStr });
+      invalidateQueries(['habits', 'dashboard', 'analytics']);
       if (calendarData) {
         await fetchCalendar(calendarData.startDate, calendarData.endDate);
       }

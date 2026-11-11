@@ -59,6 +59,7 @@ export default function Sidebar({
   const navItems = [
     { id: 'Dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'Inbox', label: 'Inbox', icon: Inbox },
+    { id: 'Notes', label: 'Notes', icon: FileText },
   ] as const;
 
   const planningItems = [

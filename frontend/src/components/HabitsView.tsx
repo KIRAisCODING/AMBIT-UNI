@@ -40,11 +40,10 @@ export default function HabitsView({
   hierarchy
 }: HabitsViewProps) {
   const [showAddForm, setShowAddForm] = useState(false);
-  const [preselectedProject, setPreselectedProject] = useState<string>('');
+  const [selectedAreaId, setSelectedAreaId] = useState<string>('');
   
   // State for new habit form
   const [newHabitName, setNewHabitName] = useState('');
-  const [selectedProjectName, setSelectedProjectName] = useState('');
   const [frequency, setFrequency] = useState<'daily' | 'weekly'>('daily');
   const [newHabitNotes, setNewHabitNotes] = useState('');
 
@@ -82,26 +81,9 @@ export default function HabitsView({
   const last7Days = getLast7Days();
   const todayStr = toLocalDateString(new Date());
 
-  // Derive all active projects from workspace hierarchy
-  const allProjects: { name: string; area: string }[] = [];
-  hierarchy.forEach(areaNode => {
-    areaNode.projects.forEach(projNode => {
-      allProjects.push({
-        name: projNode.name,
-        area: areaNode.name
-      });
-    });
-  });
-
-  // Open creation dialog with pre-selected project
-  const handleOpenAddForm = (projName?: string) => {
-    if (projName) {
-      setSelectedProjectName(projName);
-    } else if (allProjects.length > 0) {
-      setSelectedProjectName(allProjects[0].name);
-    } else {
-      setSelectedProjectName('');
-    }
+  // Open creation dialog with optional pre-selected Area
+  const handleOpenAddForm = (areaId?: string) => {
+    setSelectedAreaId(areaId || '');
     setNewHabitName('');
     setNewHabitNotes('');
     setFrequency('daily');
@@ -112,59 +94,54 @@ export default function HabitsView({
     e.preventDefault();
     if (!newHabitName.trim()) return;
 
-    const matchedProj = allProjects.find(p => p.name === selectedProjectName);
-    const area = matchedProj ? matchedProj.area : undefined;
-    
     onAddHabit(
       newHabitName.trim(), 
       frequency, 
-      selectedProjectName || undefined, 
-      area,
+      undefined, 
+      selectedAreaId || undefined, 
       undefined
     );
 
-    // Save notes separately on the newly created habit
-    // Wait, the habit id is habit-Date.now(). We can find it inside habits in the next render cycle,
-    // or just pass it in. For now, onAddHabit will add it with empty notes, which works perfectly.
     setShowAddForm(false);
     setNewHabitName('');
   };
 
-  // Group habits by project
-  // We want to loop through all projects in the workspace and render a card for each.
-  // If there are habits with NO project assigned, we will also render a "General Routines" virtual project card.
-  const unassignedHabits = habits.filter(h => !h.project || !allProjects.some(p => p.name === h.project));
+  // Group habits: Independent routines (not attached to any Area)
+  const unassignedHabits = habits.filter(h => {
+    if (h.areaId) return false;
+    if (h.area) {
+      const aName = typeof h.area === 'string' ? h.area : h.area.name;
+      return !hierarchy.some(a => a.name.toLowerCase() === aName.toLowerCase());
+    }
+    return true;
+  });
 
   // Compute stats helper
-  const getMostConsistentHabit = (projectHabits: Habit[]) => {
-    if (projectHabits.length === 0) return 'None yet';
-    let bestHabit = projectHabits[0];
-    let maxCompletions = -1;
+  const getMostConsistentHabit = (areaHabits: Habit[]) => {
+    if (areaHabits.length === 0) return 'None yet';
+    let bestHabit = areaHabits[0];
+    let maxStreak = -1;
     
-    projectHabits.forEach(h => {
-      const completionsCount = h.completedDays.length;
-      if (completionsCount > maxCompletions) {
-        maxCompletions = completionsCount;
+    areaHabits.forEach(h => {
+      const s = h.streak || h.currentStreak || 0;
+      if (s > maxStreak) {
+        maxStreak = s;
         bestHabit = h;
       }
     });
     
-    return maxCompletions > 0 ? bestHabit.name : projectHabits[0].name;
+    return maxStreak > 0 ? bestHabit.name : areaHabits[0].name;
   };
 
   // Helper for computing last 30 days completions and rate
   const getLast30DaysStats = (habit: Habit) => {
-    const today = new Date();
     let completions = 0;
-    for (let i = 0; i < 30; i++) {
-      const d = new Date();
-      d.setDate(today.getDate() - i);
-      const dStr = toLocalDateString(d);
-      if (habit.completedDays.includes(dStr)) {
-        completions++;
-      }
+    if (Array.isArray(habit.completedDays)) {
+      completions = habit.completedDays.length;
+    } else {
+      completions = habit.streak || habit.currentStreak || (habit.completedToday ? 1 : 0);
     }
-    const rate = Math.round((completions / 30) * 100);
+    const rate = Math.min(100, Math.round((completions / 30) * 100));
     return { completions, rate };
   };
 
@@ -208,44 +185,47 @@ export default function HabitsView({
       {/* Habits Grid layout: responsive 2-column masonry */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        {/* Render Workspace Projects */}
-        {allProjects.map((proj) => {
-          const projectHabits = habits.filter(h => h.project === proj.name);
-          const hasHabits = projectHabits.length > 0;
-          const mostConsistent = getMostConsistentHabit(projectHabits);
+        {/* Render Life Areas */}
+        {hierarchy.map((areaNode) => {
+          const areaHabits = habits.filter(h => {
+            if (h.areaId && areaNode.id) return h.areaId === areaNode.id;
+            if (typeof h.area === 'object' && h.area && areaNode.id) return h.area.id === areaNode.id;
+            const aName = typeof h.area === 'string' ? h.area : h.area?.name;
+            return aName && aName.toLowerCase() === areaNode.name.toLowerCase();
+          });
+          const hasHabits = areaHabits.length > 0;
+          const mostConsistent = getMostConsistentHabit(areaHabits);
 
           return (
             <div 
-              key={proj.name}
+              key={areaNode.id || areaNode.name}
               className="bg-surface border border-border hover:border-textSecondary/45 rounded-[28px] p-6 md:p-8 canvas-shadow hover:shadow-[0_12px_40px_rgb(0,0,0,0.03)] hover:-translate-y-0.5 transition-all duration-300 flex flex-col justify-between min-h-[300px]"
             >
-              {/* Card Header: Project Pills */}
+              {/* Card Header: Area Pill */}
               <div>
-                <div className="flex flex-wrap items-center gap-2 mb-6">
-                  <span className="rounded-full text-[9px] tracking-wider uppercase font-extrabold px-3 py-1 bg-pill text-textSecondary border border-border/10">
-                    {proj.area}
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+                  <span className="rounded-full text-[10px] tracking-wider uppercase font-extrabold px-3.5 py-1 bg-pill-active text-pill-active-text shadow-sm">
+                    {areaNode.name}
                   </span>
-                  <span className="rounded-full text-[9px] tracking-wider uppercase font-extrabold px-3 py-1 bg-pill-active text-pill-active-text">
-                    {proj.name}
+                  <span className="text-xs text-textSecondary font-mono">
+                    {areaHabits.length} {areaHabits.length === 1 ? 'routine' : 'routines'}
                   </span>
                 </div>
 
                 {/* Card Content: Habits weekly grid */}
                 {!hasHabits ? (
-                  /* Empty state for project */
                   <div className="flex flex-col items-center justify-center text-center py-8 bg-surfaceSecondary rounded-2xl border border-dashed border-border mb-6">
                     <CalendarDays size={20} className="text-textSecondary/40 mb-2" />
-                    <span className="text-xs font-semibold text-textPrimary mb-2">No habits created yet.</span>
+                    <span className="text-xs font-semibold text-textPrimary mb-2">No habits in this Life Area.</span>
                     <button
-                      onClick={() => handleOpenAddForm(proj.name)}
+                      onClick={() => handleOpenAddForm(areaNode.id)}
                       className="flex items-center gap-1 bg-pill hover:opacity-90 px-3 py-1.5 rounded-full text-[10px] font-bold text-textPrimary transition-all shadow-sm cursor-pointer"
                     >
-                      <Plus size={20} />
+                      <Plus size={16} />
                       <span>Create Habit</span>
                     </button>
                   </div>
                 ) : (
-                  /* Habit Matrix list */
                   <div className="space-y-4 mb-6">
                     {/* Header Columns Row */}
                     <div className="flex items-center justify-between text-[10px] font-bold text-textSecondary font-mono tracking-wider px-2 border-b border-border pb-1.5">
@@ -260,8 +240,8 @@ export default function HabitsView({
                     </div>
 
                     {/* Habit rows */}
-                    {projectHabits.map((habit) => {
-                      const isCompletedToday = habit.completedDays.includes(todayStr);
+                    {areaHabits.map((habit) => {
+                      const isCompletedToday = Boolean(habit.completedToday);
 
                       return (
                         <div 
@@ -275,10 +255,10 @@ export default function HabitsView({
                             </span>
                             
                             {/* Inline Streak Indicator */}
-                            {habit.streak > 0 && (
+                            {(habit.streak > 0 || (habit.currentStreak || 0) > 0) && (
                               <div className="flex items-center gap-0.5 bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full font-mono shrink-0">
-                                <Zap size={20} className="fill-current" />
-                                <span>{habit.streak}d</span>
+                                <Zap size={14} className="fill-current" />
+                                <span>{habit.currentStreak || habit.streak}d</span>
                               </div>
                             )}
 
@@ -292,7 +272,7 @@ export default function HabitsView({
                                 className="p-1 hover:bg-pill text-textSecondary rounded-lg transition-colors cursor-pointer"
                                 title="Edit & Details"
                               >
-                                <Edit2 size={20} />
+                                <Edit2 size={14} />
                               </button>
                               <button
                                 onClick={(e) => {
@@ -306,7 +286,7 @@ export default function HabitsView({
                                 }`}
                                 title="Mark Complete for Today"
                               >
-                                <Check size={20} className="stroke-[3]" />
+                                <Check size={16} className="stroke-[3]" />
                               </button>
                             </div>
                           </div>
@@ -314,7 +294,9 @@ export default function HabitsView({
                           {/* GitHub-style Contribution weekly squares matrix */}
                           <div className="flex gap-2 shrink-0 ml-4">
                             {last7Days.map((day) => {
-                              const isCompleted = habit.completedDays.includes(day.dateStr);
+                              const isCompleted = day.isToday
+                                ? isCompletedToday
+                                : (Array.isArray(habit.completedDays) && habit.completedDays.includes(day.dateStr));
                               return (
                                 <button
                                   key={day.dateStr}
@@ -329,7 +311,7 @@ export default function HabitsView({
                                   }`}
                                   title={`${habit.name} - ${day.dateStr}`}
                                 >
-                                  {isCompleted && <Check size={20} strokeWidth={4} />}
+                                  {isCompleted && <Check size={14} strokeWidth={4} />}
                                 </button>
                               );
                             })}
@@ -344,7 +326,7 @@ export default function HabitsView({
               {/* Card Bottom Summary section */}
               {hasHabits && (
                 <div className="pt-4 border-t border-border flex items-center justify-between text-xs">
-                  <span className="text-textSecondary font-medium">Most Consistent Habit</span>
+                  <span className="text-textSecondary font-medium">Most Consistent</span>
                   <span className="font-bold text-textPrimary bg-pill px-2.5 py-1 rounded-lg">
                     {mostConsistent}
                   </span>
@@ -380,7 +362,7 @@ export default function HabitsView({
                 </div>
 
                 {unassignedHabits.map((habit) => {
-                  const isCompletedToday = habit.completedDays.includes(todayStr);
+                  const isCompletedToday = Boolean(habit.completedToday);
 
                   return (
                     <div 
@@ -393,10 +375,10 @@ export default function HabitsView({
                           {habit.name}
                         </span>
                         
-                        {habit.streak > 0 && (
+                        {(habit.streak > 0 || (habit.currentStreak || 0) > 0) && (
                           <div className="flex items-center gap-0.5 bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full font-mono shrink-0">
-                            <Zap size={20} className="fill-current" />
-                            <span>{habit.streak}d</span>
+                            <Zap size={14} className="fill-current" />
+                            <span>{habit.currentStreak || habit.streak}d</span>
                           </div>
                         )}
 
@@ -409,7 +391,7 @@ export default function HabitsView({
                             className="p-1 hover:bg-pill text-textSecondary rounded-lg transition-colors cursor-pointer"
                             title="Edit & Details"
                           >
-                            <Edit2 size={20} />
+                            <Edit2 size={14} />
                           </button>
                           <button
                             onClick={(e) => {
@@ -423,14 +405,16 @@ export default function HabitsView({
                             }`}
                             title="Mark Complete for Today"
                           >
-                            <Check size={20} className="stroke-[3]" />
+                            <Check size={16} className="stroke-[3]" />
                           </button>
                         </div>
                       </div>
 
                       <div className="flex gap-2 shrink-0 ml-4">
                         {last7Days.map((day) => {
-                          const isCompleted = habit.completedDays.includes(day.dateStr);
+                          const isCompleted = day.isToday
+                            ? isCompletedToday
+                            : (Array.isArray(habit.completedDays) && habit.completedDays.includes(day.dateStr));
                           return (
                             <button
                               key={day.dateStr}
@@ -445,7 +429,7 @@ export default function HabitsView({
                               }`}
                               title={`${habit.name} - ${day.dateStr}`}
                             >
-                              {isCompleted && <Check size={20} strokeWidth={4} />}
+                              {isCompleted && <Check size={14} strokeWidth={4} />}
                             </button>
                           );
                         })}
@@ -707,15 +691,15 @@ export default function HabitsView({
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-textSecondary uppercase tracking-wider mb-1.5">Link to Project Card</label>
+                <label className="block text-[10px] font-bold text-textSecondary uppercase tracking-wider mb-1.5">Link to Life Area (Optional)</label>
                 <select
-                  value={selectedProjectName}
-                  onChange={(e) => setSelectedProjectName(e.target.value)}
+                  value={selectedAreaId}
+                  onChange={(e) => setSelectedAreaId(e.target.value)}
                   className="w-full bg-surfaceSecondary border border-border text-sm px-4 py-2.5 rounded-xl outline-none text-textPrimary focus:ring-1 focus:ring-accent transition-all cursor-pointer"
                 >
-                  <option value="">General Routines (No Project)</option>
-                  {allProjects.map((p) => (
-                    <option key={p.name} value={p.name}>{p.area} &rarr; {p.name}</option>
+                  <option value="">General Routines (Standalone)</option>
+                  {hierarchy.map((a) => (
+                    <option key={a.id || a.name} value={a.id || a.name}>{a.name}</option>
                   ))}
                 </select>
               </div>

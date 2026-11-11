@@ -1,10 +1,79 @@
 export type ItemType = 'Task' | 'Idea' | 'Note' | 'Journal' | 'Habit';
 
+// ==========================================
+// FIRST-CLASS DOMAIN MODELS (Stage 3 Normalized)
+// ==========================================
+
+export type CaptureType = 'TASK' | 'NOTE' | 'HABIT';
+export type CaptureStatus = 'INBOX' | 'PROMOTED' | 'TRASHED';
+
+export interface Capture {
+  id: string;
+  rawContent: string;
+  type: CaptureType;
+  status: CaptureStatus;
+  promotedId?: string | null;
+  smartSummary?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type TaskPriority = 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+export interface Task {
+  id: string;
+  title: string;
+  description?: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  dueDate?: string | null;
+  scheduledDate?: string | null; // YYYY-MM-DD format
+  completedAt?: string | null;
+  order: number;
+  areaId?: string | null;
+  projectId?: string | null;
+  subProjectId?: string | null;
+  area?: { id: string; name: string } | null;
+  project?: { id: string; name: string } | null;
+  subProject?: { id: string; name: string } | null;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Note {
+  id: string;
+  title: string | null;
+  content: string;
+  format: 'MARKDOWN';
+  pinned: boolean;
+  archivedAt?: string | null;
+  areaId?: string | null;
+  projectId?: string | null;
+  subProjectId?: string | null;
+  area?: { id: string; name: string } | null;
+  project?: { id: string; name: string } | null;
+  subProject?: { id: string; name: string } | null;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Tag {
+  id: string;
+  name: string;
+  color?: string | null;
+}
+
+/**
+ * @deprecated Legacy monolithic item type. Being phased out in favor of Task, Note, and Capture.
+ */
 export interface BrainItem {
   id: string;
   content: string;
   title?: string;
-  priority?: 'low' | 'medium' | 'high';
+  priority?: 'low' | 'medium' | 'high' | TaskPriority;
   type: ItemType;
   assignment: 'now' | 'later';
   areaId?: string;
@@ -28,18 +97,20 @@ export interface BrainItem {
 export interface Habit {
   id: string;
   name: string;
+  description?: string | null;
   frequency: 'daily' | 'weekly' | 'DAILY' | 'WEEKLY';
   streak: number;
   currentStreak?: number;
   longestStreak?: number;
-  completedDays?: string[]; // YYYY-MM-DD format
+  completedDays?: string[]; // Legacy compatibility
   completedToday?: boolean;
   targetDaysPerWeek?: number | null;
   createdAt: string;
-  project?: string;
-  area?: string;
+  updatedAt?: string;
+  project?: string; // Legacy compatibility
+  area?: string | { id: string; name: string } | null;
   areaId?: string | null;
-  subProject?: string;
+  subProject?: string; // Legacy compatibility
   notes?: string;
   weeklyProgress?: {
     completed: number;
@@ -51,7 +122,7 @@ export interface Habit {
   } | null;
 }
 
-export type ActiveTab = 'Dashboard' | 'Inbox' | 'Unassigned' | 'Habits' | 'Calendar' | 'Analytics' | 'Settings';
+export type ActiveTab = 'Dashboard' | 'Inbox' | 'Notes' | 'Unassigned' | 'Habits' | 'Calendar' | 'Analytics' | 'Settings';
 
 export interface AreaHierarchy {
   id?: string;
