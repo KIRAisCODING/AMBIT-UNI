@@ -49,10 +49,23 @@ export function useAreas() {
   };
 
   const deleteArea = async (id: string) => {
-    await fetch(`/api/areas/${id}?mode=delete`, {
-      method: 'DELETE',
-    });
-    await fetchHierarchy();
+    try {
+      const res = await fetch(`/api/areas/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        if (res.status === 409 && errorData.error) {
+          alert(errorData.error);
+        }
+        return { success: false, ...errorData };
+      }
+      await fetchHierarchy();
+      return { success: true };
+    } catch (err: any) {
+      console.error('Failed to delete area:', err);
+      return { success: false, error: err.message };
+    }
   };
 
   const createProject = async (name: string, areaId: string) => {
@@ -64,11 +77,21 @@ export function useAreas() {
     await fetchHierarchy();
   };
 
-  const deleteProject = async (id: string) => {
-    await fetch(`/api/projects/${id}?mode=delete`, {
-      method: 'DELETE',
-    });
-    await fetchHierarchy();
+  const deleteProject = async (id: string, policy: 'preserve' | 'destructive' = 'preserve') => {
+    try {
+      const res = await fetch(`/api/projects/${id}?policy=${policy}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        return { success: false, ...errorData };
+      }
+      await fetchHierarchy();
+      return { success: true };
+    } catch (err: any) {
+      console.error('Failed to delete project:', err);
+      return { success: false, error: err.message };
+    }
   };
 
   const createSubProject = async (name: string, projectId: string) => {
@@ -81,10 +104,20 @@ export function useAreas() {
   };
 
   const deleteSubProject = async (id: string) => {
-    await fetch(`/api/subprojects/${id}?mode=delete`, {
-      method: 'DELETE',
-    });
-    await fetchHierarchy();
+    try {
+      const res = await fetch(`/api/subprojects/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        return { success: false, ...errorData };
+      }
+      await fetchHierarchy();
+      return { success: true };
+    } catch (err: any) {
+      console.error('Failed to delete subproject:', err);
+      return { success: false, error: err.message };
+    }
   };
 
   const updateHierarchy = async (newHierarchy: AreaHierarchy[]) => {

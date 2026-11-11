@@ -22,11 +22,12 @@ import SettingsView from './components/SettingsView';
 import BrainChat from './components/BrainChat';
 import ProductTour from './components/ProductTour';
 import WorkspaceView from './components/WorkspaceView';
+import DashboardView from './components/DashboardView';
 import LoginPage from './components/LoginPage';
 
 export default function App() {
   // Navigation tabs state
-  const [activeTab, setActiveTab] = useState<ActiveTab>('Inbox');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('Dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth >= 768;
@@ -188,6 +189,24 @@ export default function App() {
     }
 
     switch (activeTab) {
+      case 'Dashboard':
+        return (
+          <DashboardView
+            onNavigateTab={(tab) => {
+              setSelectedSubProject(null);
+              setActiveTab(tab);
+            }}
+            onSelectProject={(sel) => {
+              setSelectedSubProject(sel);
+            }}
+            onQuickCapture={async (content, type) => {
+              await handleCaptureItem(
+                { content, type: type as any, tags: [], assignment: 'later' },
+                false
+              );
+            }}
+          />
+        );
       case 'Inbox':
         return (
           <InboxView 
@@ -224,10 +243,7 @@ export default function App() {
         );
       case 'Calendar':
         return (
-          <CalendarView 
-            items={calendarItems}
-            onScheduleItem={handleScheduleItem}
-          />
+          <CalendarView />
         );
       case 'Analytics':
         return (

@@ -16,12 +16,6 @@ export async function PATCH(
 
     const task = await prisma.task.findFirst({
       where: { id, userId },
-      include: {
-        area: true,
-        project: { include: { area: true } },
-        subProject: { include: { project: { include: { area: true } } } },
-        tags: true,
-      },
     });
 
     if (!task) {
@@ -29,24 +23,33 @@ export async function PATCH(
     }
 
     const body = await req.json().catch(() => ({}));
-    let scheduledDate: string | null = null;
+    let newScheduledDate: string | null = null;
 
-    if (body.scheduledDate !== undefined && body.scheduledDate !== null && body.scheduledDate !== "") {
-      if (!isValidDateOnly(body.scheduledDate)) {
-        return NextResponse.json(
-          {
-            error: `Invalid scheduledDate: "${body.scheduledDate}". Expected YYYY-MM-DD representing a valid calendar date.`,
-          },
-          { status: 400 }
-        );
+    if (body.scheduledDate !== undefined) {
+      if (body.scheduledDate === null || body.scheduledDate === "") {
+        newScheduledDate = null;
+      } else {
+        if (!isValidDateOnly(body.scheduledDate)) {
+          return NextResponse.json(
+            { error: `Invalid scheduledDate: "${body.scheduledDate}". Expected YYYY-MM-DD.` },
+            { status: 400 }
+          );
+        }
+        newScheduledDate = body.scheduledDate;
       }
-      scheduledDate = body.scheduledDate;
+    } else {
+      return NextResponse.json(
+        { error: "scheduledDate field is required in request body." },
+        { status: 400 }
+      );
     }
 
-    // Update scheduledDate strictly. dueDate is completely untouched!
-    const updated = await prisma.task.update({
+    // Update scheduledDate strictly leaving dueDate untouched (Decision 07 & 10)
+    const updatedTask = await prisma.task.update({
       where: { id },
-      data: { scheduledDate },
+      data: {
+        scheduledDate: newScheduledDate,
+      },
       include: {
         area: true,
         project: { include: { area: true } },
@@ -55,7 +58,7 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json(mapTaskToResponse(updated));
+    return NextResponse.json(mapTaskToResponse(updatedTask));
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

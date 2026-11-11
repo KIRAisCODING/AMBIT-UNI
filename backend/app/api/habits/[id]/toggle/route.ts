@@ -1,80 +1,102 @@
 import { authenticateAndRateLimit } from "@/lib/rateLimit";
 import { prisma } from "@/lib/prisma";
+import { mapHabitToResponse } from "@/lib/habitUtils";
+import { isValidDateOnly, getUserLocalToday } from "@/lib/dateUtils";
 import { NextResponse } from "next/server";
 
-export async function PATCH(
+async function handleToggle(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  paramsPromise: Promise<{ id: string }>
 ) {
   try {
     const { session, errorResponse } = await authenticateAndRateLimit("write");
     if (errorResponse) return errorResponse;
     const userId = session.user.id;
-    const { id } = await params;
-    
+    const { id } = await paramsPromise;
+
+    const body = await req.json().catch(() => ({}));
+    const timeZone =
+      req.headers.get("x-timezone") ||
+      body.timeZone ||
+      body.timezone ||
+      "UTC";
+
+    // Validate or resolve date
+    let dateStr = body.date;
+    if (dateStr) {
+      if (!isValidDateOnly(dateStr)) {
+        return NextResponse.json(
+          { error: `Invalid date format: "${dateStr}". Expected YYYY-MM-DD.` },
+          { status: 400 }
+        );
+      }
+    } else {
+      dateStr = getUserLocalToday(timeZone);
+    }
+
     // Verify ownership
     const habit = await prisma.habit.findFirst({
       where: { id, userId },
+      include: {
+        area: true,
+        logs: true,
+      },
     });
 
     if (!habit) {
       return NextResponse.json({ error: "Habit not found" }, { status: 404 });
     }
 
-    const body = await req.json().catch(() => ({}));
-    
-    // Default to today's date in local server YYYY-MM-DD
-    const dateStr = body.date || new Date().toISOString().split("T")[0];
+    const existingLog = habit.logs.find((l) => l.date === dateStr);
+    let action = "checked_in";
+    let completed = true;
 
-    let completedDays = [...habit.completedDays];
-    const isAlreadyCompleted = completedDays.includes(dateStr);
-
-    if (isAlreadyCompleted) {
-      completedDays = completedDays.filter((d) => d !== dateStr);
+    if (existingLog) {
+      await prisma.habitLog.delete({
+        where: { id: existingLog.id },
+      });
+      action = "undone";
+      completed = false;
     } else {
-      completedDays.push(dateStr);
+      await prisma.habitLog.create({
+        data: {
+          habitId: id,
+          userId,
+          date: dateStr,
+          completedAt: new Date(),
+        },
+      });
     }
 
-    // Sort dates
-    completedDays.sort();
-
-    // Calculate streak
-    let streak = 0;
-    const datesSet = new Set(completedDays);
-    const checkDate = new Date();
-
-    // If today is completed, trace backwards
-    const todayStr = checkDate.toISOString().split("T")[0];
-    if (datesSet.has(todayStr)) {
-      while (datesSet.has(checkDate.toISOString().split("T")[0])) {
-        streak++;
-        checkDate.setDate(checkDate.getDate() - 1);
-      }
-    } else {
-      // If today is not completed, check if yesterday was to preserve active streak
-      checkDate.setDate(checkDate.getDate() - 1);
-      if (datesSet.has(checkDate.toISOString().split("T")[0])) {
-        while (datesSet.has(checkDate.toISOString().split("T")[0])) {
-          streak++;
-          checkDate.setDate(checkDate.getDate() - 1);
-        }
-      }
-    }
-
-    // Longest streak calculation
-    const longestStreak = Math.max(habit.longestStreak, streak);
-
-    const updatedHabit = await prisma.habit.update({
+    const refreshedHabit = await prisma.habit.findUnique({
       where: { id },
-      data: {
-        completedDays,
-        streak,
-        longestStreak,
+      include: {
+        area: true,
+        logs: true,
       },
     });
 
-    return NextResponse.json(updatedHabit);
+    return NextResponse.json({
+      ...mapHabitToResponse(refreshedHabit, { timeZone }),
+      action,
+      completed,
+      date: dateStr,
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+}
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return handleToggle(req, params);
+}
+
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return handleToggle(req, params);
 }

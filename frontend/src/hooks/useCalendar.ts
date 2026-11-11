@@ -1,81 +1,112 @@
-import { useState, useEffect } from 'react';
-import { BrainItem } from '../types';
+import { useState, useEffect, useCallback } from 'react';
+import { CalendarResponse } from '../types';
 
-export function useCalendar() {
-  const [calendarItems, setCalendarItems] = useState<BrainItem[]>([]);
+export function useCalendar(initialStart?: string, initialEnd?: string) {
+  const [calendarData, setCalendarData] = useState<CalendarResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchCalendar = async () => {
+  const fetchCalendar = useCallback(async (start?: string, end?: string) => {
     try {
-      const res = await fetch('/api/calendar');
-      if (res.ok) {
-        const data = await res.json();
-        setCalendarItems(data.map(mapBackendTaskToBrainItem));
+      setIsLoading(true);
+      setError(null);
+      const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      
+      const queryParams = new URLSearchParams();
+      if (start) queryParams.set('start', start);
+      if (end) queryParams.set('end', end);
+      queryParams.set('timeZone', userTimeZone);
+
+      const res = await fetch(`/api/calendar?${queryParams.toString()}`, {
+        headers: {
+          'x-timezone': userTimeZone,
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to load calendar data: ${res.statusText}`);
       }
-    } catch (err) {
-      console.error('Failed to load calendar:', err);
+
+      const data: CalendarResponse = await res.json();
+      setCalendarData(data);
+    } catch (err: any) {
+      console.error('Error fetching calendar commitments:', err);
+      setError(err.message || 'Failed to fetch calendar');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchCalendar();
   }, []);
 
-  const scheduleItem = async (id: string, dateStr: string) => {
+  useEffect(() => {
+    fetchCalendar(initialStart, initialEnd);
+  }, [fetchCalendar, initialStart, initialEnd]);
+
+  // Schedule or Reschedule a Task (Updates scheduledDate only, leaving dueDate untouched)
+  const scheduleTask = async (taskId: string, scheduledDate: string | null) => {
     try {
-      await fetch(`/api/tasks/${id}`, {
+      const res = await fetch(`/api/tasks/${taskId}/schedule`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deadline: dateStr || null }),
+        body: JSON.stringify({ scheduledDate }),
       });
-      await fetchCalendar();
+      if (!res.ok) {
+        throw new Error('Failed to update task schedule');
+      }
+      if (calendarData) {
+        await fetchCalendar(calendarData.startDate, calendarData.endDate);
+      }
     } catch (err) {
-      console.error('Failed to schedule item:', err);
+      console.error('Error in scheduleTask:', err);
+      throw err;
+    }
+  };
+
+  // Toggle Task Completion from Calendar
+  const toggleTaskComplete = async (taskId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'COMPLETED' ? 'TODO' : 'COMPLETED';
+    try {
+      await fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (calendarData) {
+        await fetchCalendar(calendarData.startDate, calendarData.endDate);
+      }
+    } catch (err) {
+      console.error('Error toggling task completion from calendar:', err);
+      throw err;
+    }
+  };
+
+  // Toggle Habit for a specific date
+  const toggleHabitDay = async (habitId: string, dateStr: string) => {
+    try {
+      const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      await fetch(`/api/habits/${habitId}/toggle`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-timezone': userTimeZone,
+        },
+        body: JSON.stringify({ date: dateStr }),
+      });
+      if (calendarData) {
+        await fetchCalendar(calendarData.startDate, calendarData.endDate);
+      }
+    } catch (err) {
+      console.error('Error toggling habit day from calendar:', err);
+      throw err;
     }
   };
 
   return {
-    calendarItems,
+    calendarData,
     isLoading,
-    scheduleItem,
+    error,
     refreshCalendar: fetchCalendar,
-  };
-}
-
-function mapBackendTaskToBrainItem(item: any): BrainItem {
-  const taskData = item.task || {};
-  let deadline = undefined;
-  if (taskData.deadline) {
-    deadline = taskData.deadline.split('T')[0];
-  }
-
-  let completedAt = undefined;
-  if (taskData.completedAt) {
-    const d = new Date(taskData.completedAt);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    completedAt = `${year}-${month}-${day}`;
-  }
-
-  return {
-    id: item.id,
-    content: item.content,
-    title: item.content,
-    type: item.type as any,
-    assignment: item.assigned ? 'now' : 'later',
-    area: item.area || undefined,
-    project: item.project || undefined,
-    subProject: item.subProject || undefined,
-    tags: item.tags || [],
-    createdAt: item.createdAt || new Date().toISOString(),
-    completed: Boolean(taskData.completed),
-    completedAt,
-    scheduledDate: deadline,
-    smartSummary: item.smartSummary || undefined,
-    categorySuggestion: item.categorySuggestion || undefined,
-    order: taskData.order !== undefined ? taskData.order : undefined,
+    scheduleTask,
+    toggleTaskComplete,
+    toggleHabitDay,
   };
 }

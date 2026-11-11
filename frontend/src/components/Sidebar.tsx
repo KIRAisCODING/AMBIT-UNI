@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  Inbox, Folder, Clock, Brain, Calendar, BarChart3, Settings, X, 
+  LayoutDashboard, Inbox, Folder, Clock, Brain, Calendar, BarChart3, Settings, X, 
   ChevronRight, ChevronDown, Sparkles, Plus, Trash2, FolderOpen, 
   FolderKanban, Hash, FileText, PanelLeftClose
 } from 'lucide-react';
@@ -57,6 +57,7 @@ export default function Sidebar({
   const [newSubProjectName, setNewSubProjectName] = useState('');
 
   const navItems = [
+    { id: 'Dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'Inbox', label: 'Inbox', icon: Inbox },
   ] as const;
 
