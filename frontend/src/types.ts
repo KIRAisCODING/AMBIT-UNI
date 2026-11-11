@@ -232,3 +232,39 @@ export interface CalendarResponse {
   habits: CalendarHabitItem[];
   projectMilestones: CalendarProjectMilestone[];
 }
+
+// ==========================================
+// ANALYTICS TYPES (Decision 04)
+// ==========================================
+
+export interface MomentumDataPoint {
+  dateStr: string;
+  label: string;
+  count: number;
+}
+
+export interface ThisWeekMetrics {
+  completedThisWeek: number;
+  createdThisWeek: number;
+  habitCompletionRate: number;
+  activeProjectsCount: number;
+}
+
+export interface ActiveProjectMetric {
+  name: string;
+  pct: number;
+  total: number;
+}
+
+export interface AnalyticsResponse {
+  areaProgress: Record<string, number>;
+  momentumData: MomentumDataPoint[];
+  trendStatus: {
+    text: string;
+    color: string;
+  };
+  habitHeatmap: Record<string, number>;
+  unassignedCount: number;
+  thisWeekMetrics: ThisWeekMetrics;
+  activeProjects: ActiveProjectMetric[];
+}

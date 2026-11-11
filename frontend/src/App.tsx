@@ -41,7 +41,7 @@ export default function App() {
   const { hierarchy, updateHierarchy, createSubProject } = useAreas();
   const { items, createTask, updateTask, deleteTask, assignTask, reorderTasks, refreshTasks } = useTasks();
   const { habits, addHabit, toggleHabitDay, deleteHabit, updateHabit } = useHabits();
-  const { calendarItems, scheduleItem, refreshCalendar } = useCalendar();
+  const { scheduleTask, refreshCalendar } = useCalendar();
 
   const [selectedSubProject, setSelectedSubProject] = useState<WorkspaceSelection | null>(null);
 
@@ -122,7 +122,7 @@ export default function App() {
 
   // 5. Schedule date on calendar
   const handleScheduleItem = async (id: string, dateStr: string) => {
-    await scheduleItem(id, dateStr);
+    await scheduleTask(id, dateStr);
     await refreshTasks();
   };
 
