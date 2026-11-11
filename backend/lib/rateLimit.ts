@@ -53,6 +53,13 @@ export function checkRateLimit(
   return null;
 }
 
+// Test harness hook for isolated integration testing (only active under NODE_ENV === "test")
+let testSessionOverride: any = undefined;
+
+export function __setTestSession(session: any) {
+  testSessionOverride = session;
+}
+
 /**
  * Authenticates the user session and applies the rate limiter.
  * Returns an object with the session (if successful) or errorResponse (if rejected).
@@ -60,7 +67,11 @@ export function checkRateLimit(
 export async function authenticateAndRateLimit(
   category: keyof typeof LIMIT_CONFIGS
 ): Promise<{ session?: any; errorResponse?: NextResponse }> {
-  const session = await auth();
+  const session =
+    process.env.NODE_ENV === "test" && testSessionOverride !== undefined
+      ? testSessionOverride
+      : await auth();
+
   if (!session || !session.user || !session.user.id) {
     return { errorResponse: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }

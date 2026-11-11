@@ -284,54 +284,59 @@ export async function POST(req: Request) {
           .map((t: string) => t.trim().toLowerCase())
       : [];
 
-    const task = await prisma.$transaction(async (tx) => {
-      // Find highest order in target placement
-      const maxTask = await tx.task.findFirst({
-        where: {
-          userId,
-          areaId: hierarchyCheck.normalized.areaId,
-          projectId: hierarchyCheck.normalized.projectId,
-          subProjectId: hierarchyCheck.normalized.subProjectId,
-        },
-        orderBy: { order: "desc" },
-      });
-      const order = maxTask ? maxTask.order + 1 : 0;
-
-      // Upsert tags
-      const tagConnectors = [];
-      for (const name of tagNames) {
-        const tag = await tx.tag.upsert({
-          where: { userId_name: { userId, name } },
-          update: {},
-          create: { userId, name },
+    const task = await prisma.$transaction(
+      async (tx) => {
+        // Find highest order in target placement
+        const maxTask = await tx.task.findFirst({
+          where: {
+            userId,
+            areaId: hierarchyCheck.normalized.areaId,
+            projectId: hierarchyCheck.normalized.projectId,
+            subProjectId: hierarchyCheck.normalized.subProjectId,
+          },
+          orderBy: { order: "desc" },
         });
-        tagConnectors.push({ id: tag.id });
-      }
+        const order = maxTask ? maxTask.order + 1 : 0;
 
-      return tx.task.create({
-        data: {
-          userId,
-          title: rawTitle,
-          description: body.description || null,
-          status,
-          priority,
-          dueDate,
-          scheduledDate,
-          completedAt,
-          order,
-          areaId: hierarchyCheck.normalized.areaId,
-          projectId: hierarchyCheck.normalized.projectId,
-          subProjectId: hierarchyCheck.normalized.subProjectId,
-          tags: tagConnectors.length > 0 ? { connect: tagConnectors } : undefined,
-        },
-        include: {
-          area: true,
-          project: { include: { area: true } },
-          subProject: { include: { project: { include: { area: true } } } },
-          tags: true,
-        },
-      });
-    });
+        // Upsert tags concurrently
+        const tagConnectors = await Promise.all(
+          tagNames.map((name) =>
+            tx.tag
+              .upsert({
+                where: { userId_name: { userId, name } },
+                update: {},
+                create: { userId, name },
+              })
+              .then((tag) => ({ id: tag.id }))
+          )
+        );
+
+        return tx.task.create({
+          data: {
+            userId,
+            title: rawTitle,
+            description: body.description || null,
+            status,
+            priority,
+            dueDate,
+            scheduledDate,
+            completedAt,
+            order,
+            areaId: hierarchyCheck.normalized.areaId,
+            projectId: hierarchyCheck.normalized.projectId,
+            subProjectId: hierarchyCheck.normalized.subProjectId,
+            tags: tagConnectors.length > 0 ? { connect: tagConnectors } : undefined,
+          },
+          include: {
+            area: true,
+            project: { include: { area: true } },
+            subProject: { include: { project: { include: { area: true } } } },
+            tags: true,
+          },
+        });
+      },
+      { timeout: 15000 }
+    );
 
     return NextResponse.json(mapTaskToResponse(task), { status: 201 });
   } catch (error: any) {

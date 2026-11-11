@@ -127,31 +127,29 @@ export async function DELETE(
       return NextResponse.json({ error: "Capture not found" }, { status: 404 });
     }
 
-    // Capture must be in trash before permanent deletion
+    // Capture must be in TRASHED status before permanent deletion
     if (capture.status !== CaptureStatus.TRASHED) {
       return NextResponse.json(
         {
           error:
-            "Capture must be moved to trash before permanent deletion. Use PATCH /api/inbox/[id]/trash first.",
+            "Capture must be in TRASHED status before permanent deletion. Use PATCH /api/inbox/[id]/trash first.",
         },
         { status: 400 }
       );
     }
 
-    // Enforce 30-day retention rule
-    const { searchParams } = new URL(req.url);
-    const force = searchParams.get("force") === "true";
+    // Strict 30-day retention enforcement: no client-accessible bypass permitted
     const trashedAtTime = capture.trashedAt ? new Date(capture.trashedAt).getTime() : 0;
     const isRetentionExpired = Date.now() - trashedAtTime >= THIRTY_DAYS_MS;
 
-    if (!isRetentionExpired && !force) {
+    if (!isRetentionExpired) {
       const daysRemaining = Math.max(
         1,
         Math.ceil((THIRTY_DAYS_MS - (Date.now() - trashedAtTime)) / (24 * 60 * 60 * 1000))
       );
       return NextResponse.json(
         {
-          error: `Cannot permanently delete: Capture is protected by the 30-day retention policy (${daysRemaining} day(s) remaining). Use ?force=true to override.`,
+          error: `Cannot permanently delete: Capture is protected by the 30-day retention policy (${daysRemaining} day(s) remaining).`,
           daysRemaining,
         },
         { status: 400 }
