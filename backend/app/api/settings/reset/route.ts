@@ -16,10 +16,33 @@ export async function POST(req: Request) {
     if (errorResponse) return errorResponse;
     const userId = session.user.id;
 
-    const body = await req.json().catch(() => ({}));
-    const action = body.action || "clear"; // "clear" or "seed"
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json(
+        { error: "Invalid request payload. Expected JSON body with action and confirm." },
+        { status: 400 }
+      );
+    }
 
-    // 1. Transactional Reverse-Dependency Deletion
+    const { action, confirm } = body;
+
+    // 1. Explicit Action Validation (Rejects missing, malformed, or unrecognized actions)
+    if (!action || typeof action !== "string" || !["clear", "seed"].includes(action)) {
+      return NextResponse.json(
+        { error: 'Invalid or missing action. Expected "clear" or "seed".' },
+        { status: 400 }
+      );
+    }
+
+    // 2. Explicit Confirmation Required (Rejects unconfirmed destructive requests)
+    if (confirm !== true) {
+      return NextResponse.json(
+        { error: "Explicit confirmation required. Please provide confirm: true to proceed with reset." },
+        { status: 400 }
+      );
+    }
+
+    // 3. Transactional Reverse-Dependency Deletion
     // Clears user application data while strictly preserving User, Account, Session, and Settings
     await prisma.$transaction([
       prisma.habitLog.deleteMany({ where: { userId } }),
@@ -366,6 +389,10 @@ export async function POST(req: Request) {
           : "Database cleared successfully",
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Settings reset error:", error);
+    return NextResponse.json(
+      { error: "An unexpected error occurred while resetting settings data." },
+      { status: 500 }
+    );
   }
 }

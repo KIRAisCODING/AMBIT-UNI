@@ -323,34 +323,117 @@ async function run() {
     }
 
     // ====================================================
-    // SUITE 7: Settings Reset Endpoint Security
+    // SUITE 7: Settings Reset Security & Validation
     // ====================================================
-    console.log('\n--- Suite 7: Settings Reset Security ---');
+    console.log('\n--- Suite 7: Settings Reset Security & Validation ---');
     {
+      // 7.1 Unauthenticated request rejected
       __setTestSession(null);
-      const req = new Request('http://localhost:3000/api/settings/reset', {
+      const unauthReq = new Request('http://localhost:3000/api/settings/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'clear', confirm: true }),
+      });
+      const unauthRes = await resetRoute.POST(unauthReq);
+      assert(unauthRes.status === 401, 'Unauthenticated reset request rejected with 401');
+
+      __setTestSession({ user: { id: userAId } });
+
+      // 7.2 Missing action rejected with 400
+      const missingActionReq = new Request('http://localhost:3000/api/settings/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: true }),
+      });
+      const missingActionRes = await resetRoute.POST(missingActionReq);
+      assert(missingActionRes.status === 400, 'Missing action rejected with 400 Bad Request');
+      const missingActionBody = await missingActionRes.json();
+      assert(missingActionBody.error.includes('action'), 'Error message cites missing/invalid action');
+
+      // 7.3 Unknown action rejected with 400
+      const unknownActionReq = new Request('http://localhost:3000/api/settings/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'destroy_all', confirm: true }),
+      });
+      const unknownActionRes = await resetRoute.POST(unknownActionReq);
+      assert(unknownActionRes.status === 400, 'Unknown action rejected with 400 Bad Request');
+
+      // 7.4 Non-string action rejected with 400
+      const nonStringActionReq = new Request('http://localhost:3000/api/settings/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 12345, confirm: true }),
+      });
+      const nonStringActionRes = await resetRoute.POST(nonStringActionReq);
+      assert(nonStringActionRes.status === 400, 'Non-string action rejected with 400 Bad Request');
+
+      // 7.5 Missing confirmation rejected with 400
+      const missingConfirmReq = new Request('http://localhost:3000/api/settings/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'clear' }),
       });
-      const res = await resetRoute.POST(req);
-      assert(res.status === 401, 'Unauthenticated reset request rejected with 401');
+      const missingConfirmRes = await resetRoute.POST(missingConfirmReq);
+      assert(missingConfirmRes.status === 400, 'Missing confirmation rejected with 400 Bad Request');
+      const missingConfirmBody = await missingConfirmRes.json();
+      assert(missingConfirmBody.error.includes('confirmation'), 'Error message cites confirmation required');
+
+      // 7.6 Confirmation set to false rejected with 400
+      const falseConfirmReq = new Request('http://localhost:3000/api/settings/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'clear', confirm: false }),
+      });
+      const falseConfirmRes = await resetRoute.POST(falseConfirmReq);
+      assert(falseConfirmRes.status === 400, 'confirm: false rejected with 400 Bad Request');
+
+      // 7.7 Non-boolean confirmation (e.g. string "true") rejected with 400
+      const stringConfirmReq = new Request('http://localhost:3000/api/settings/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'clear', confirm: 'true' }),
+      });
+      const stringConfirmRes = await resetRoute.POST(stringConfirmReq);
+      assert(stringConfirmRes.status === 400, 'Truthy non-boolean confirmation rejected with 400');
+
+      // 7.8 Empty payload / non-object rejected with 400
+      const emptyPayloadReq = new Request('http://localhost:3000/api/settings/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '',
+      });
+      const emptyPayloadRes = await resetRoute.POST(emptyPayloadReq);
+      assert(emptyPayloadRes.status === 400, 'Empty body payload rejected with 400 Bad Request');
+
+      // 7.9 Cross-user manipulation rejected (User B cannot target User A)
+      __setTestSession({ user: { id: userBId } });
+      const crossUserReq = new Request('http://localhost:3000/api/settings/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userAId, targetUserId: userAId, action: 'clear', confirm: true }),
+      });
+      const crossUserRes = await resetRoute.POST(crossUserReq);
+      assert(crossUserRes.status === 200, 'Reset executes for User B without error');
+      // Verify User A data is completely untouched by User B's reset
+      const userATaskCount = await prisma.task.count({ where: { userId: userAId } });
+      assert(userATaskCount > 0, 'User A data remains completely intact after User B reset request');
     }
 
     // ====================================================
-    // SUITE 8: Settings Reset (action: "clear")
+    // SUITE 8: Settings Reset (action: "clear", confirm: true)
     // ====================================================
-    console.log('\n--- Suite 8: Settings Reset (action: "clear") ---');
+    console.log('\n--- Suite 8: Settings Reset (action: "clear", confirm: true) ---');
     {
       __setTestSession({ user: { id: userAId } });
 
       const req = new Request('http://localhost:3000/api/settings/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'clear' }),
+        body: JSON.stringify({ action: 'clear', confirm: true }),
       });
       const res = await resetRoute.POST(req);
-      assert(res.status === 200, 'POST /api/settings/reset with action: "clear" returns 200');
+      assert(res.status === 200, 'POST /api/settings/reset with action: "clear" and confirm: true returns 200');
       const body = await res.json();
       assert(body.success === true, 'Response indicates success: true');
 
@@ -391,10 +474,10 @@ async function run() {
       const req = new Request('http://localhost:3000/api/settings/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'seed' }),
+        body: JSON.stringify({ action: 'seed', confirm: true }),
       });
       const res = await resetRoute.POST(req);
-      assert(res.status === 200, 'POST /api/settings/reset with action: "seed" returns 200');
+      assert(res.status === 200, 'POST /api/settings/reset with action: "seed" and confirm: true returns 200');
       const body = await res.json();
       assert(body.success === true, 'Response indicates success: true');
 

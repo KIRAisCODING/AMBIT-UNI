@@ -68,6 +68,9 @@ async function audit() {
     const prodTags = await prodPrisma.tag.count();
     const prodAccounts = await prodPrisma.account.count();
     const prodSettings = await prodPrisma.settings.count();
+    const prodAreas = await prodPrisma.area.count();
+    const prodProjects = await prodPrisma.project.count();
+    const prodSubProjects = await prodPrisma.subProject.count();
 
     console.log(`Production Users count: ${prodUsers.length}`);
     console.log(`Production Users emails:`, prodUsers.map(u => u.email));
@@ -78,6 +81,9 @@ async function audit() {
     console.log(`Production Tags count: ${prodTags}`);
     console.log(`Production Accounts count: ${prodAccounts}`);
     console.log(`Production Settings count: ${prodSettings}`);
+    console.log(`Production Areas count: ${prodAreas}`);
+    console.log(`Production Projects count: ${prodProjects}`);
+    console.log(`Production SubProjects count: ${prodSubProjects}`);
 
     // Check migration history in production
     const prodMigrations = await prodPrisma.$queryRawUnsafe(

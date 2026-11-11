@@ -135,7 +135,7 @@ export function useSettings() {
       await fetch('/api/settings/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, confirm: true }),
       });
       window.location.reload();
     } catch (err) {

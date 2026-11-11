@@ -15,11 +15,71 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let target = "";
+  let captureId = "";
+  let userId = "";
+
+  async function resolveExistingPromoted(currentCapture: any) {
+    if (currentCapture.promotedType === target && currentCapture.promotedId) {
+      if (target === "TASK") {
+        const existingTask = await prisma.task.findUnique({
+          where: { id: currentCapture.promotedId },
+          include: {
+            area: true,
+            project: { include: { area: true } },
+            subProject: { include: { project: { include: { area: true } } } },
+            tags: true,
+          },
+        });
+        if (existingTask) {
+          return NextResponse.json({
+            success: true,
+            alreadyPromoted: true,
+            task: existingTask,
+            capture: currentCapture,
+          });
+        }
+      } else if (target === "NOTE") {
+        const existingNote = await prisma.note.findUnique({
+          where: { id: currentCapture.promotedId },
+          include: { tags: true },
+        });
+        if (existingNote) {
+          return NextResponse.json({
+            success: true,
+            alreadyPromoted: true,
+            note: existingNote,
+            capture: currentCapture,
+          });
+        }
+      } else if (target === "HABIT") {
+        const existingHabit = await prisma.habit.findUnique({
+          where: { id: currentCapture.promotedId },
+        });
+        if (existingHabit) {
+          return NextResponse.json({
+            success: true,
+            alreadyPromoted: true,
+            habit: existingHabit,
+            capture: currentCapture,
+          });
+        }
+      }
+    }
+    return NextResponse.json(
+      {
+        error: `Capture has already been promoted to ${currentCapture.promotedType} (ID: ${currentCapture.promotedId})`,
+      },
+      { status: 409 }
+    );
+  }
+
   try {
     const { session, errorResponse } = await authenticateAndRateLimit("write");
     if (errorResponse) return errorResponse;
-    const userId = session.user.id;
-    const { id: captureId } = await params;
+    userId = session.user.id;
+    const resolvedParams = await params;
+    captureId = resolvedParams.id;
 
     // 1. Fetch capture and verify user ownership
     const capture = await prisma.capture.findFirst({
@@ -31,7 +91,7 @@ export async function POST(
     }
 
     const body = await req.json().catch(() => ({}));
-    const target = (body.target || "").toUpperCase();
+    target = (body.target || "").toUpperCase();
 
     // Mandatory Correction A: Only support TASK, NOTE, HABIT
     if (target !== "TASK" && target !== "NOTE" && target !== "HABIT") {
@@ -46,58 +106,7 @@ export async function POST(
 
     // 2. Idempotency Check: if already promoted
     if (capture.status === CaptureStatus.PROMOTED) {
-      if (capture.promotedType === target && capture.promotedId) {
-        if (target === "TASK") {
-          const existingTask = await prisma.task.findUnique({
-            where: { id: capture.promotedId },
-            include: {
-              area: true,
-              project: { include: { area: true } },
-              subProject: { include: { project: { include: { area: true } } } },
-              tags: true,
-            },
-          });
-          if (existingTask) {
-            return NextResponse.json({
-              success: true,
-              alreadyPromoted: true,
-              task: existingTask,
-              capture,
-            });
-          }
-        } else if (target === "NOTE") {
-          const existingNote = await prisma.note.findUnique({
-            where: { id: capture.promotedId },
-            include: { tags: true },
-          });
-          if (existingNote) {
-            return NextResponse.json({
-              success: true,
-              alreadyPromoted: true,
-              note: existingNote,
-              capture,
-            });
-          }
-        } else if (target === "HABIT") {
-          const existingHabit = await prisma.habit.findUnique({
-            where: { id: capture.promotedId },
-          });
-          if (existingHabit) {
-            return NextResponse.json({
-              success: true,
-              alreadyPromoted: true,
-              habit: existingHabit,
-              capture,
-            });
-          }
-        }
-      }
-      return NextResponse.json(
-        {
-          error: `Capture has already been promoted to ${capture.promotedType} (ID: ${capture.promotedId})`,
-        },
-        { status: 409 }
-      );
+      return resolveExistingPromoted(capture);
     }
 
     // 3. Target: TASK
@@ -174,8 +183,23 @@ export async function POST(
             .map((t: string) => t.trim().toLowerCase())
         : [];
 
-      // Atomic Transaction: Create Task and Update Capture
+      // Atomic Transaction: Concurrency-Safe Status Claim & Task Creation
       const result = await prisma.$transaction(async (tx) => {
+        // Atomic status claim: ensure exactly one transaction transitions capture out of INBOX
+        const claim = await tx.capture.updateMany({
+          where: { id: captureId, userId, status: CaptureStatus.INBOX },
+          data: {
+            status: CaptureStatus.PROMOTED,
+            promotedType: PromotedType.TASK,
+          },
+        });
+
+        if (claim.count === 0) {
+          const err: any = new Error("ALREADY_PROMOTED_OR_CLAIMED");
+          err.code = "CONCURRENCY_CLAIM_FAILED";
+          throw err;
+        }
+
         // Find highest order in target placement
         const maxTask = await tx.task.findFirst({
           where: {
@@ -226,8 +250,6 @@ export async function POST(
         const updatedCapture = await tx.capture.update({
           where: { id: captureId },
           data: {
-            status: CaptureStatus.PROMOTED,
-            promotedType: PromotedType.TASK,
             promotedId: task.id,
           },
         });
@@ -266,7 +288,23 @@ export async function POST(
             .map((t: string) => t.trim().toLowerCase())
         : [];
 
+      // Atomic Transaction: Concurrency-Safe Status Claim & Note Creation
       const result = await prisma.$transaction(async (tx) => {
+        // Atomic status claim
+        const claim = await tx.capture.updateMany({
+          where: { id: captureId, userId, status: CaptureStatus.INBOX },
+          data: {
+            status: CaptureStatus.PROMOTED,
+            promotedType: PromotedType.NOTE,
+          },
+        });
+
+        if (claim.count === 0) {
+          const err: any = new Error("ALREADY_PROMOTED_OR_CLAIMED");
+          err.code = "CONCURRENCY_CLAIM_FAILED";
+          throw err;
+        }
+
         const tagConnectors = [];
         for (const name of tagNames) {
           const tag = await tx.tag.upsert({
@@ -296,8 +334,6 @@ export async function POST(
         const updatedCapture = await tx.capture.update({
           where: { id: captureId },
           data: {
-            status: CaptureStatus.PROMOTED,
-            promotedType: PromotedType.NOTE,
             promotedId: note.id,
           },
         });
@@ -352,7 +388,23 @@ export async function POST(
             : 3;
       }
 
+      // Atomic Transaction: Concurrency-Safe Status Claim & Habit Creation
       const result = await prisma.$transaction(async (tx) => {
+        // Atomic status claim
+        const claim = await tx.capture.updateMany({
+          where: { id: captureId, userId, status: CaptureStatus.INBOX },
+          data: {
+            status: CaptureStatus.PROMOTED,
+            promotedType: PromotedType.HABIT,
+          },
+        });
+
+        if (claim.count === 0) {
+          const err: any = new Error("ALREADY_PROMOTED_OR_CLAIMED");
+          err.code = "CONCURRENCY_CLAIM_FAILED";
+          throw err;
+        }
+
         const habit = await tx.habit.create({
           data: {
             userId,
@@ -367,8 +419,6 @@ export async function POST(
         const updatedCapture = await tx.capture.update({
           where: { id: captureId },
           data: {
-            status: CaptureStatus.PROMOTED,
-            promotedType: PromotedType.HABIT,
             promotedId: habit.id,
           },
         });
@@ -385,7 +435,39 @@ export async function POST(
 
     return NextResponse.json({ error: "Unsupported target" }, { status: 400 });
   } catch (error: any) {
+    if (
+      error.code === "CONCURRENCY_CLAIM_FAILED" ||
+      error.code === "P2034" ||
+      error.code === "P2028" ||
+      error.message?.includes("write conflict") ||
+      error.message?.includes("deadlock")
+    ) {
+      try {
+        if (captureId && userId) {
+          let latestCapture = await prisma.capture.findFirst({
+            where: { id: captureId, userId },
+          });
+
+          // If the competing transaction is in the middle of assigning promotedId, wait briefly
+          if (latestCapture && latestCapture.status === CaptureStatus.PROMOTED && !latestCapture.promotedId) {
+            await new Promise((r) => setTimeout(r, 60));
+            latestCapture = await prisma.capture.findFirst({
+              where: { id: captureId, userId },
+            });
+          }
+
+          if (latestCapture && latestCapture.status === CaptureStatus.PROMOTED) {
+            return resolveExistingPromoted(latestCapture);
+          }
+        }
+      } catch {
+        // Fall through to 409
+      }
+      return NextResponse.json(
+        { error: "Capture is currently being promoted or is no longer in inbox" },
+        { status: 409 }
+      );
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-
