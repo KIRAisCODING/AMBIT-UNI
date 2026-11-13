@@ -33,37 +33,20 @@ const prodPrisma = new PrismaClient({ datasources: { db: { url: prodDirectUrl } 
 async function verifyProd() {
   console.log('--- Production Database Read-Only Inspection ---');
   try {
-    const [
-      usersCount,
-      accountsCount,
-      settingsCount,
-      sessionsCount,
-      feedbacksCount,
-      capturesCount,
-      areasCount,
-      projectsCount,
-      subProjectsCount,
-      tasksCount,
-      notesCount,
-      habitsCount,
-      habitLogsCount,
-      tagsCount
-    ] = await Promise.all([
-      prodPrisma.user.count(),
-      prodPrisma.account.count(),
-      prodPrisma.settings.count(),
-      prodPrisma.session.count(),
-      prodPrisma.feedback.count(),
-      prodPrisma.capture.count(),
-      prodPrisma.area.count(),
-      prodPrisma.project.count(),
-      prodPrisma.subProject.count(),
-      prodPrisma.task.count(),
-      prodPrisma.note.count(),
-      prodPrisma.habit.count(),
-      prodPrisma.habitLog.count(),
-      prodPrisma.tag.count()
-    ]);
+    const usersCount = await prodPrisma.user.count();
+    const accountsCount = await prodPrisma.account.count();
+    const settingsCount = await prodPrisma.settings.count();
+    const sessionsCount = await prodPrisma.session.count();
+    const feedbacksCount = await prodPrisma.feedback.count();
+    const capturesCount = await prodPrisma.capture.count();
+    const areasCount = await prodPrisma.area.count();
+    const projectsCount = await prodPrisma.project.count();
+    const subProjectsCount = await prodPrisma.subProject.count();
+    const tasksCount = await prodPrisma.task.count();
+    const notesCount = await prodPrisma.note.count();
+    const habitsCount = await prodPrisma.habit.count();
+    const habitLogsCount = await prodPrisma.habitLog.count();
+    const tagsCount = await prodPrisma.tag.count();
 
     console.log('Production Counts:');
     console.log(`- Users:       ${usersCount}`);
