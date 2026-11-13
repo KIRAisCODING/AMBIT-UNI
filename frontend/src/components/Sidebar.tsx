@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   LayoutDashboard, Inbox, Folder, Clock, Brain, Calendar, BarChart3, Settings, X, 
   ChevronRight, ChevronDown, Sparkles, Plus, Trash2, FolderOpen, 
-  FolderKanban, Hash, FileText, PanelLeftClose
+  FolderKanban, Hash, FileText, PanelLeftClose, CheckSquare
 } from 'lucide-react';
 import { ActiveTab, AreaHierarchy, WorkspaceSelection } from '../types';
 
@@ -59,11 +59,11 @@ export default function Sidebar({
   const navItems = [
     { id: 'Dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'Inbox', label: 'Inbox', icon: Inbox },
+    { id: 'Tasks', label: 'Tasks', icon: CheckSquare },
     { id: 'Notes', label: 'Notes', icon: FileText },
   ] as const;
 
   const planningItems = [
-    { id: 'Unassigned', label: 'Unassigned', icon: Clock },
     { id: 'Habits', label: 'Habits', icon: Brain },
     { id: 'Calendar', label: 'Calendar', icon: Calendar },
   ] as const;

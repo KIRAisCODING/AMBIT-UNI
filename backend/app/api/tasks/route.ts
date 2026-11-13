@@ -74,17 +74,30 @@ export async function GET(req: Request) {
     const groupBy = searchParams.get("groupBy");
     const timeZone = searchParams.get("timeZone") || "UTC";
 
+    const unassignedParam = searchParams.get("unassigned");
+
     const where: any = {
       userId,
       archivedAt: null,
     };
 
-    if (subProjectId) {
+    if (unassignedParam === "true") {
+      where.areaId = null;
+      where.projectId = null;
+      where.subProjectId = null;
+    } else if (subProjectId) {
       where.subProjectId = subProjectId;
     } else if (projectId) {
-      where.projectId = projectId;
+      where.OR = [
+        { projectId: projectId },
+        { subProject: { projectId: projectId } },
+      ];
     } else if (areaId) {
-      where.areaId = areaId;
+      where.OR = [
+        { areaId: areaId },
+        { project: { areaId: areaId } },
+        { subProject: { project: { areaId: areaId } } },
+      ];
     }
 
     if (statusParam) {

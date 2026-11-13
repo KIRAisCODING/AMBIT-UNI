@@ -37,6 +37,9 @@ export interface Task {
   area?: { id: string; name: string } | null;
   project?: { id: string; name: string } | null;
   subProject?: { id: string; name: string } | null;
+  areaName?: string | null;
+  projectName?: string | null;
+  subProjectName?: string | null;
   tags: string[];
   createdAt: string;
   updatedAt: string;
@@ -73,17 +76,23 @@ export interface BrainItem {
   id: string;
   content: string;
   title?: string;
+  description?: string | null;
   priority?: 'low' | 'medium' | 'high' | TaskPriority;
   type: ItemType;
   assignment: 'now' | 'later';
   areaId?: string;
   projectId?: string;
   subProjectId?: string;
-  area?: string;
-  project?: string;
-  subProject?: string;
+  area?: any;
+  project?: any;
+  subProject?: any;
+  areaName?: string | null;
+  projectName?: string | null;
+  subProjectName?: string | null;
   tags: string[];
   createdAt: string;
+  updatedAt?: string;
+  status?: TaskStatus;
   completed?: boolean;
   completedAt?: string;
   dueDate?: string;
@@ -122,7 +131,7 @@ export interface Habit {
   } | null;
 }
 
-export type ActiveTab = 'Dashboard' | 'Inbox' | 'Notes' | 'Unassigned' | 'Habits' | 'Calendar' | 'Analytics' | 'Settings';
+export type ActiveTab = 'Dashboard' | 'Inbox' | 'Tasks' | 'Notes' | 'Unassigned' | 'Habits' | 'Calendar' | 'Analytics' | 'Settings';
 
 export interface AreaHierarchy {
   id?: string;

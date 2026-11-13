@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { 
-  Check, Calendar, Tag, Plus, ArrowLeft, ArrowUpRight, AlertCircle, Trash2, Edit2, CheckCircle2, Circle, Eye, Sparkles, AlertTriangle, GripVertical, Folder, X
+  Check, Calendar, Tag, Plus, ArrowLeft, ArrowUpRight, AlertCircle, Trash2, Edit2, 
+  CheckCircle2, Circle, Eye, Sparkles, AlertTriangle, GripVertical, Folder, X,
+  FileText, Brain, Zap, CheckSquare
 } from 'lucide-react';
-import { BrainItem, ItemType, AreaHierarchy } from '../types';
+import { BrainItem, ItemType, AreaHierarchy, Note, Habit } from '../types';
 import EditInboxItemModal from './EditInboxItemModal';
 
 interface WorkspaceViewProps {
@@ -10,6 +12,8 @@ interface WorkspaceViewProps {
   project?: string;
   subProject?: string;
   items: BrainItem[];
+  notes?: Note[];
+  habits?: Habit[];
   hierarchy?: AreaHierarchy[];
   onCreateSubProject?: (name: string, projectId: string) => Promise<void>;
   onToggleComplete: (id: string) => void;
@@ -17,47 +21,80 @@ interface WorkspaceViewProps {
   onAddTask: (task: Omit<BrainItem, 'id' | 'createdAt'>) => void;
   onUpdateTask: (id: string, updates: Partial<BrainItem>) => void;
   onReorderTasks?: (orderedIds: string[]) => void;
+  onCreateNote?: (noteInput: any) => Promise<any>;
+  onDeleteNote?: (id: string) => Promise<void>;
+  onAddHabit?: (name: string, frequency: 'daily' | 'weekly', project?: string, area?: string, subProject?: string) => Promise<any> | void;
+  onToggleHabitDay?: (id: string, dateStr: string) => Promise<any> | void;
 }
 
-const parseLocalDate = (dateStr: string): Date => {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day);
+const toLocalDateString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
-
 
 export default function WorkspaceView({
   area,
   project,
   subProject,
   items,
+  notes = [],
+  habits = [],
   hierarchy = [],
   onCreateSubProject,
   onToggleComplete,
   onDeleteItem,
   onAddTask,
   onUpdateTask,
-  onReorderTasks
+  onReorderTasks,
+  onCreateNote,
+  onDeleteNote,
+  onAddHabit,
+  onToggleHabitDay,
 }: WorkspaceViewProps) {
   // Find current hierarchy node to inspect subprojects
   const currentAreaNode = hierarchy.find(a => a.name === area || a.id === area);
   const currentProjectNode = currentAreaNode?.projects.find(p => p.name === project || p.id === project);
   const availableSubProjects = currentProjectNode?.subProjects || [];
+  const selectedSubProjectNode = availableSubProjects.find(sp => sp.name === subProject || sp.id === subProject);
 
-  // Filter tasks belonging to this Area, Project, or SubProject
+  // Workspace sub-tabs: 'tasks' | 'notes' | 'habits'
+  const isAreaWorkspace = Boolean(area && !project && !subProject);
+  const [activeSection, setActiveSection] = useState<'tasks' | 'notes' | 'habits'>('tasks');
+
+  // Helpers to safely resolve hierarchy identifiers and names across legacy and normalized entities
+  const getAreaId = (it: any) => it.areaId || (typeof it.area === 'object' ? it.area?.id : null);
+  const getAreaName = (it: any) => (typeof it.area === 'string' ? it.area : it.area?.name) || it.areaName || '';
+  const getProjectId = (it: any) => it.projectId || (typeof it.project === 'object' ? it.project?.id : null);
+  const getProjectName = (it: any) => (typeof it.project === 'string' ? it.project : it.project?.name) || it.projectName || '';
+  const getSubProjectId = (it: any) => it.subProjectId || (typeof it.subProject === 'object' ? it.subProject?.id : null);
+  const getSubProjectName = (it: any) => (typeof it.subProject === 'string' ? it.subProject : it.subProject?.name) || it.subProjectName || '';
+
+  // 1. Filter tasks belonging to this Area, Project, or SubProject
   const subProjectItems = items.filter(item => {
-    const isAssigned = item.assignment === 'now' || Boolean(item.areaId || item.projectId || item.subProjectId || item.area || item.project || item.subProject);
+    const isAssigned = item.assignment === 'now' || Boolean(
+      item.areaId || item.projectId || item.subProjectId || 
+      getAreaId(item) || getProjectId(item) || getSubProjectId(item) ||
+      getAreaName(item) || getProjectName(item) || getSubProjectName(item)
+    );
     if (!isAssigned) return false;
 
     if (subProject) {
-      return (item.subProject === subProject || item.subProjectId === subProject) &&
-             (!project || item.project === project || item.projectId === project) &&
-             (!area || item.area === area || item.areaId === area);
+      const matchSub = (selectedSubProjectNode?.id && getSubProjectId(item) === selectedSubProjectNode.id) ||
+        (getSubProjectName(item).toLowerCase() === subProject.toLowerCase());
+      return matchSub;
     }
+
     if (project) {
-      return (item.project === project || item.projectId === project) &&
-             (!area || item.area === area || item.areaId === area);
+      const matchProj = (currentProjectNode?.id && getProjectId(item) === currentProjectNode.id) ||
+        (getProjectName(item).toLowerCase() === project.toLowerCase());
+      return matchProj;
     }
-    return item.area === area || item.areaId === area;
+
+    const matchArea = (currentAreaNode?.id && getAreaId(item) === currentAreaNode.id) ||
+      (getAreaName(item).toLowerCase() === area.toLowerCase());
+    return matchArea;
   });
 
   // Sort tasks using the custom sequential order field
@@ -66,6 +103,41 @@ export default function WorkspaceView({
     const orderB = b.order !== undefined ? b.order : 0;
     if (orderA !== orderB) return orderA - orderB;
     return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
+
+  // 2. Filter notes belonging to this Area, Project, or Subproject
+  const workspaceNotes = notes.filter((n) => {
+    if (n.archivedAt) return false;
+
+    if (subProject) {
+      return Boolean(
+        (selectedSubProjectNode?.id && n.subProjectId === selectedSubProjectNode.id) ||
+        (typeof n.subProject === 'object' && n.subProject?.name?.toLowerCase() === subProject.toLowerCase()) ||
+        ((n.subProject as any) === subProject)
+      );
+    }
+
+    if (project) {
+      return Boolean(
+        (currentProjectNode?.id && n.projectId === currentProjectNode.id) ||
+        (typeof n.project === 'object' && n.project?.name?.toLowerCase() === project.toLowerCase()) ||
+        ((n.project as any) === project)
+      );
+    }
+
+    return Boolean(
+      (currentAreaNode?.id && n.areaId === currentAreaNode.id) ||
+      (typeof n.area === 'object' && n.area?.name?.toLowerCase() === area.toLowerCase()) ||
+      ((n.area as any) === area)
+    );
+  });
+
+  // 3. Filter habits belonging to this Area (Habits only link to Area)
+  const workspaceHabits = habits.filter((h) => {
+    if (!isAreaWorkspace) return false;
+    return (currentAreaNode?.id && h.areaId === currentAreaNode.id) ||
+      (typeof h.area === 'object' && h.area?.name?.toLowerCase() === area.toLowerCase()) ||
+      (typeof h.area === 'string' && h.area.toLowerCase() === area.toLowerCase());
   });
 
   // States
@@ -94,7 +166,21 @@ export default function WorkspaceView({
   const [editPriority, setEditPriority] = useState<'low' | 'medium' | 'high'>('medium');
   const [editDate, setEditDate] = useState('');
 
-  const directTasksCount = subProjectItems.filter(it => !it.subProject && !it.subProjectId).length;
+  // Note creator state in workspace
+  const [showNewNoteForm, setShowNewNoteForm] = useState(false);
+  const [newNoteTitle, setNewNoteTitle] = useState('');
+  const [newNoteContent, setNewNoteContent] = useState('');
+  const [newNoteTags, setNewNoteTags] = useState<string[]>([]);
+  const [noteTagInput, setNoteTagInput] = useState('');
+  const [isSubmittingNote, setIsSubmittingNote] = useState(false);
+
+  // Habit creator state in workspace
+  const [showNewHabitForm, setShowNewHabitForm] = useState(false);
+  const [newHabitName, setNewHabitName] = useState('');
+  const [newHabitFreq, setNewHabitFreq] = useState<'daily' | 'weekly'>('daily');
+  const [isSubmittingHabit, setIsSubmittingHabit] = useState(false);
+
+  const directTasksCount = subProjectItems.filter(it => !getSubProjectId(it) && !getSubProjectName(it)).length;
 
   const handleCreateSubProjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,13 +291,20 @@ export default function WorkspaceView({
       return ord > max ? ord : max;
     }, 0);
 
+    const targetSub = newTaskSubProject 
+      ? availableSubProjects.find(sp => sp.name === newTaskSubProject || sp.id === newTaskSubProject)
+      : selectedSubProjectNode;
+
     onAddTask({
       content: newTaskContent.trim(),
       title: actualTitle,
       type: 'Task',
       assignment: 'now',
-      area,
-      project: project || undefined,
+      areaId: currentAreaNode?.id || undefined,
+      projectId: currentProjectNode?.id || undefined,
+      subProjectId: targetSub?.id || undefined,
+      area: currentAreaNode?.name || area,
+      project: currentProjectNode?.name || project || undefined,
       subProject: subProject || (newTaskSubProject ? newTaskSubProject : undefined),
       priority: newTaskPriority,
       scheduledDate: newTaskDate || undefined,
@@ -230,13 +323,80 @@ export default function WorkspaceView({
     setShowNewForm(false);
   };
 
+  const handleCreateNoteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newNoteContent.trim() && !newNoteTitle.trim()) return;
+    if (!onCreateNote) return;
+
+    setIsSubmittingNote(true);
+    try {
+      await onCreateNote({
+        title: newNoteTitle.trim() || null,
+        content: newNoteContent.trim(),
+        areaId: currentAreaNode?.id || null,
+        projectId: currentProjectNode?.id || null,
+        subProjectId: selectedSubProjectNode?.id || null,
+        tags: newNoteTags,
+      });
+
+      setNewNoteTitle('');
+      setNewNoteContent('');
+      setNewNoteTags([]);
+      setNoteTagInput('');
+      setShowNewNoteForm(false);
+    } catch (err) {
+      console.error('Failed to create workspace note:', err);
+    } finally {
+      setIsSubmittingNote(false);
+    }
+  };
+
+  const handleCreateHabitSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newHabitName.trim() || !onAddHabit) return;
+
+    setIsSubmittingHabit(true);
+    try {
+      await onAddHabit(
+        newHabitName.trim(),
+        newHabitFreq,
+        undefined,
+        currentAreaNode?.id || currentAreaNode?.name || area
+      );
+      setNewHabitName('');
+      setShowNewHabitForm(false);
+    } catch (err) {
+      console.error('Failed to create workspace habit:', err);
+    } finally {
+      setIsSubmittingHabit(false);
+    }
+  };
+
   const displayedItems = sortedSubProjectItems.filter(item => {
     if (activeSubProjectFilter === 'all') return true;
     if (activeSubProjectFilter === '__direct__') {
-      return !item.subProject && !item.subProjectId;
+      return !getSubProjectId(item) && !getSubProjectName(item);
     }
-    return item.subProject === activeSubProjectFilter || item.subProjectId === activeSubProjectFilter;
+    return getSubProjectName(item).toLowerCase() === activeSubProjectFilter.toLowerCase() ||
+           getSubProjectId(item) === activeSubProjectFilter;
   });
+
+  const last7Days = (() => {
+    const list = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      list.push({
+        dateStr: toLocalDateString(d),
+        dayName: d.toLocaleDateString(undefined, { weekday: 'narrow' }),
+        dayNum: d.getDate(),
+        isToday: i === 0
+      });
+    }
+    return list;
+  })();
+
+  const todayStr = toLocalDateString(new Date());
 
   return (
     <div id="tour-workspace-view" className="w-full max-w-[1440px] mx-auto animate-fade-in">
@@ -261,17 +421,18 @@ export default function WorkspaceView({
           </div>
           <h2 className="text-2xl md:text-3xl font-headline font-bold text-textPrimary flex items-center gap-2">
             <span>{subProject ? `${subProject} Workspace` : project ? `${project} Workspace` : `${area} Workspace`}</span>
-            <span className="text-xs bg-pill-active text-pill-active-text px-2 py-0.5 rounded-full font-mono font-bold">
+            <span className="text-xs bg-pill-active text-pill-active-text px-2.5 py-0.5 rounded-full font-mono font-bold">
               {subProjectItems.length} task{subProjectItems.length !== 1 ? 's' : ''}
             </span>
           </h2>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-center">
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2 self-start sm:self-center flex-wrap">
           {project && !subProject && (
             <button
               onClick={() => setShowAddSubProjectForm(!showAddSubProjectForm)}
-              className="flex items-center gap-1.5 bg-pill hover:opacity-90 text-textSecondary hover:text-textPrimary px-3.5 py-2 rounded-full text-xs font-semibold shadow-sm transition-all cursor-pointer"
+              className="flex items-center gap-1.5 bg-pill hover:opacity-90 text-textSecondary hover:text-textPrimary px-3.5 py-2 rounded-full text-xs font-semibold shadow-xs transition-all cursor-pointer"
               title="Add an optional subproject"
             >
               <Plus size={16} />
@@ -279,14 +440,77 @@ export default function WorkspaceView({
             </button>
           )}
 
-          <button
-            onClick={() => setShowNewForm(!showNewForm)}
-            className="flex items-center gap-1.5 bg-pill-active text-pill-active-text hover:opacity-90 px-4.5 py-2 rounded-full text-xs font-semibold shadow-md transition-all cursor-pointer"
-          >
-            <Plus size={20} />
-            <span>Add Task</span>
-          </button>
+          {activeSection === 'tasks' && (
+            <button
+              onClick={() => setShowNewForm(!showNewForm)}
+              className="flex items-center gap-1.5 bg-pill-active text-pill-active-text hover:opacity-90 px-4 py-2 rounded-full text-xs font-semibold shadow-sm transition-all cursor-pointer"
+            >
+              <Plus size={18} />
+              <span>Add Task</span>
+            </button>
+          )}
+
+          {activeSection === 'notes' && (
+            <button
+              onClick={() => setShowNewNoteForm(!showNewNoteForm)}
+              className="flex items-center gap-1.5 bg-pill-active text-pill-active-text hover:opacity-90 px-4 py-2 rounded-full text-xs font-semibold shadow-sm transition-all cursor-pointer"
+            >
+              <Plus size={18} />
+              <span>New Note</span>
+            </button>
+          )}
+
+          {activeSection === 'habits' && (
+            <button
+              onClick={() => setShowNewHabitForm(!showNewHabitForm)}
+              className="flex items-center gap-1.5 bg-pill-active text-pill-active-text hover:opacity-90 px-4 py-2 rounded-full text-xs font-semibold shadow-sm transition-all cursor-pointer"
+            >
+              <Plus size={18} />
+              <span>New Habit</span>
+            </button>
+          )}
         </div>
+      </div>
+
+      {/* Workspace Section Switcher: Tasks | Notes | Habits (if Area) */}
+      <div className="flex items-center gap-2 mb-6 border-b border-border pb-3">
+        <button
+          onClick={() => setActiveSection('tasks')}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            activeSection === 'tasks'
+              ? 'bg-pill-active text-pill-active-text shadow-sm'
+              : 'text-textSecondary hover:text-textPrimary hover:bg-surfaceSecondary'
+          }`}
+        >
+          <CheckSquare size={16} />
+          <span>Tasks ({subProjectItems.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSection('notes')}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            activeSection === 'notes'
+              ? 'bg-pill-active text-pill-active-text shadow-sm'
+              : 'text-textSecondary hover:text-textPrimary hover:bg-surfaceSecondary'
+          }`}
+        >
+          <FileText size={16} />
+          <span>Notes ({workspaceNotes.length})</span>
+        </button>
+
+        {isAreaWorkspace && (
+          <button
+            onClick={() => setActiveSection('habits')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              activeSection === 'habits'
+                ? 'bg-pill-active text-pill-active-text shadow-sm'
+                : 'text-textSecondary hover:text-textPrimary hover:bg-surfaceSecondary'
+            }`}
+          >
+            <Brain size={16} />
+            <span>Habits & Routines ({workspaceHabits.length})</span>
+          </button>
+        )}
       </div>
 
       {/* Inline Add Subproject Form */}
@@ -333,515 +557,535 @@ export default function WorkspaceView({
         </form>
       )}
 
-      {/* Subprojects Filter Strip - Only shown when project has subprojects */}
-      {project && !subProject && availableSubProjects.length > 0 && (
-        <div className="flex items-center gap-1.5 mb-6 overflow-x-auto hide-scrollbar pb-1">
-          <button
-            type="button"
-            onClick={() => setActiveSubProjectFilter('all')}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer ${
-              activeSubProjectFilter === 'all'
-                ? 'bg-pill-active text-pill-active-text shadow-sm'
-                : 'bg-pill text-textSecondary hover:text-textPrimary'
-            }`}
-          >
-            All Tasks ({subProjectItems.length})
-          </button>
-          {directTasksCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setActiveSubProjectFilter('__direct__')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer ${
-                activeSubProjectFilter === '__direct__'
-                  ? 'bg-pill-active text-pill-active-text shadow-sm'
-                  : 'bg-pill text-textSecondary hover:text-textPrimary'
-              }`}
-            >
-              Direct Tasks ({directTasksCount})
-            </button>
-          )}
-          {availableSubProjects.map(sp => {
-            const count = subProjectItems.filter(it => it.subProject === sp.name || it.subProjectId === sp.id).length;
-            return (
+      {/* ========================================================================= */}
+      {/* SECTION 1: TASKS */}
+      {/* ========================================================================= */}
+      {activeSection === 'tasks' && (
+        <div>
+          {/* Subprojects Filter Strip - Only shown when project has subprojects */}
+          {project && !subProject && availableSubProjects.length > 0 && (
+            <div className="flex items-center gap-1.5 mb-6 overflow-x-auto hide-scrollbar pb-1">
               <button
-                key={sp.id || sp.name}
                 type="button"
-                onClick={() => setActiveSubProjectFilter(sp.name)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
-                  activeSubProjectFilter === sp.name
+                onClick={() => setActiveSubProjectFilter('all')}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer ${
+                  activeSubProjectFilter === 'all'
                     ? 'bg-pill-active text-pill-active-text shadow-sm'
                     : 'bg-pill text-textSecondary hover:text-textPrimary'
                 }`}
               >
-                <Folder size={13} className="opacity-70" />
-                <span>{sp.name}</span>
-                <span className="text-[10px] opacity-75 font-mono">({count})</span>
+                All Tasks ({subProjectItems.length})
               </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* New Task Inline Form */}
-      {showNewForm && (
-        <form 
-          onSubmit={handleCreateTaskSubmit}
-          className="bg-surface border border-border rounded-[24px] p-6 mb-8 canvas-shadow animate-scale-in"
-        >
-          <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
-            <h3 className="text-sm font-bold text-textPrimary flex items-center gap-1.5">
-              <CheckCircle2 size={20} />
-              <span>Create Task in {subProject || project || area}</span>
-            </h3>
-            <button
-              type="button"
-              onClick={() => setShowNewForm(false)}
-              className="text-xs text-textSecondary hover:text-textPrimary font-medium cursor-pointer"
-            >
-              Cancel
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-textSecondary mb-1.5">Task Title</label>
-                <input
-                  type="text"
-                  required
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  placeholder="What needs to be done?"
-                  className="w-full bg-surfaceSecondary border border-border text-sm px-4 py-2.5 rounded-xl outline-none text-textPrimary font-medium focus:ring-1 focus:ring-accent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-textSecondary mb-1.5">Deadline / Scheduled Date</label>
-                <input
-                  type="date"
-                  value={newTaskDate}
-                  onChange={(e) => setNewTaskDate(e.target.value)}
-                  className="w-full bg-surfaceSecondary border border-border text-sm px-4 py-2.5 rounded-xl outline-none text-textPrimary font-medium font-mono focus:ring-1 focus:ring-accent"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-textSecondary mb-1.5">Detailed Description</label>
-              <textarea
-                value={newTaskContent}
-                onChange={(e) => setNewTaskContent(e.target.value)}
-                placeholder="Describe the actionable scope of this task..."
-                className="w-full bg-surfaceSecondary border border-border text-sm px-4 py-2.5 rounded-xl outline-none text-textPrimary min-h-[80px] focus:ring-1 focus:ring-accent"
-                rows={3}
-              />
-            </div>
-
-            {/* Optional Subproject selection inside task creator - only if project has subprojects */}
-            {availableSubProjects.length > 0 && !subProject && (
-              <div>
-                <label className="block text-xs font-semibold text-textSecondary mb-1.5">
-                  Subproject <span className="text-textSecondary/60 font-normal">(Optional)</span>
-                </label>
-                <select
-                  value={newTaskSubProject}
-                  onChange={(e) => setNewTaskSubProject(e.target.value)}
-                  className="w-full bg-surfaceSecondary border border-border text-sm px-4 py-2.5 rounded-xl outline-none text-textPrimary font-medium font-mono focus:ring-1 focus:ring-accent"
+              {directTasksCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveSubProjectFilter('__direct__')}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer ${
+                    activeSubProjectFilter === '__direct__'
+                      ? 'bg-pill-active text-pill-active-text shadow-sm'
+                      : 'bg-pill text-textSecondary hover:text-textPrimary'
+                  }`}
                 >
-                  <option value="">None (Directly under {project})</option>
-                  {availableSubProjects.map(sp => (
-                    <option key={sp.id || sp.name} value={sp.name}>{sp.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
+                  Direct Tasks ({directTasksCount})
+                </button>
+              )}
+              {availableSubProjects.map(sp => {
+                const count = subProjectItems.filter(it => 
+                  getSubProjectId(it) === sp.id || getSubProjectName(it).toLowerCase() === sp.name.toLowerCase()
+                ).length;
+                return (
+                  <button
+                    key={sp.id || sp.name}
+                    type="button"
+                    onClick={() => setActiveSubProjectFilter(sp.name)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                      activeSubProjectFilter.toLowerCase() === sp.name.toLowerCase()
+                        ? 'bg-pill-active text-pill-active-text shadow-sm'
+                        : 'bg-pill text-textSecondary hover:text-textPrimary'
+                    }`}
+                  >
+                    <Folder size={13} className="opacity-70" />
+                    <span>{sp.name}</span>
+                    <span className="text-[10px] opacity-75 font-mono">({count})</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-textSecondary mb-1.5">Priority</label>
-                <div className="flex gap-2">
-                  {(['low', 'medium', 'high'] as const).map((prio) => (
-                    <button
-                      key={prio}
-                      type="button"
-                      onClick={() => setNewTaskPriority(prio)}
-                      className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-all uppercase tracking-wider cursor-pointer ${
-                        newTaskPriority === prio
-                          ? prio === 'high' 
-                            ? 'bg-red-500 text-white border-red-500 shadow-sm' 
-                            : prio === 'medium'
-                              ? 'bg-pill-active text-pill-active-text border-pill-active shadow-sm'
-                              : 'bg-gray-500 text-white border-gray-500 shadow-sm'
-                          : 'bg-transparent border-border text-textSecondary hover:text-textPrimary'
-                      }`}
-                    >
-                      {prio}
-                    </button>
-                  ))}
+          {/* New Task Inline Form */}
+          {showNewForm && (
+            <form 
+              onSubmit={handleCreateTaskSubmit}
+              className="bg-surface border border-border rounded-[24px] p-6 mb-8 canvas-shadow animate-scale-in"
+            >
+              <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
+                <h3 className="text-sm font-bold text-textPrimary flex items-center gap-1.5">
+                  <CheckCircle2 size={18} className="text-accent" />
+                  <span>Create Task in {subProject || project || area}</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowNewForm(false)}
+                  className="text-xs text-textSecondary hover:text-textPrimary font-medium cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-textSecondary mb-1.5">Task Title *</label>
+                    <input
+                      type="text"
+                      required
+                      autoFocus
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                      placeholder="What needs to be done?"
+                      className="w-full bg-surfaceSecondary border border-border text-sm px-4 py-2.5 rounded-xl outline-none text-textPrimary font-medium focus:ring-1 focus:ring-accent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-textSecondary mb-1.5">Deadline / Scheduled Date</label>
+                    <input
+                      type="date"
+                      value={newTaskDate}
+                      onChange={(e) => setNewTaskDate(e.target.value)}
+                      className="w-full bg-surfaceSecondary border border-border text-sm px-4 py-2.5 rounded-xl outline-none text-textPrimary font-medium font-mono focus:ring-1 focus:ring-accent"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-textSecondary mb-1.5">Tags (Press Enter to add)</label>
-                <div className="flex items-center gap-1.5 flex-wrap bg-surfaceSecondary border border-border p-2 rounded-xl min-h-[42px]">
-                  {newTaskTags.map(t => (
-                    <span key={t} className="bg-surface border border-border text-textSecondary px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1">
-                      <span>{t}</span>
-                      <button type="button" onClick={() => setNewTaskTags(newTaskTags.filter(x => x !== t))} className="hover:text-red-500 text-[8px] cursor-pointer">×</button>
-                    </span>
-                  ))}
-                  <input
-                    type="text"
-                    value={newTagInput}
-                    onChange={(e) => setNewTagInput(e.target.value)}
-                    onKeyDown={handleAddTagToNewTask}
-                    placeholder="+ Tag..."
-                    className="bg-transparent border-none text-xs focus:ring-0 p-0 outline-none placeholder:text-textMuted text-textPrimary font-semibold max-w-[80px]"
+                <div>
+                  <label className="block text-xs font-semibold text-textSecondary mb-1.5">Detailed Description</label>
+                  <textarea
+                    value={newTaskContent}
+                    onChange={(e) => setNewTaskContent(e.target.value)}
+                    placeholder="Describe the actionable scope of this task..."
+                    className="w-full bg-surfaceSecondary border border-border text-sm px-4 py-2.5 rounded-xl outline-none text-textPrimary min-h-[70px] focus:ring-1 focus:ring-accent"
+                    rows={2}
                   />
                 </div>
-              </div>
-            </div>
 
-            <div className="flex gap-2 justify-end pt-3">
-              <button
-                type="button"
-                onClick={() => setShowNewForm(false)}
-                className="px-4 py-2 text-xs font-semibold text-textSecondary hover:bg-surfaceSecondary rounded-lg cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="bg-pill-active text-pill-active-text hover:opacity-90 px-5 py-2 rounded-xl text-xs font-semibold shadow-sm cursor-pointer"
-              >
-                Create Task
-              </button>
-            </div>
-          </div>
-        </form>
-      )}
-
-      {/* Task Stack List */}
-      {displayedItems.length === 0 ? (
-        <div className="bg-surface border border-border rounded-[28px] canvas-shadow p-12 text-center flex flex-col items-center justify-center min-h-[45vh]">
-          <div className="mb-4 inline-flex p-4 rounded-full bg-surfaceSecondary text-textSecondary">
-            <Check size={20} />
-          </div>
-          <h3 className="text-lg font-headline font-semibold text-textPrimary mb-1">
-            Task Queue Clear!
-          </h3>
-          <p className="text-sm text-textSecondary max-w-sm">
-            All tasks inside {subProject || (activeSubProjectFilter !== 'all' && activeSubProjectFilter !== '__direct__' ? activeSubProjectFilter : project) || area} are completed. Add a new task to resume.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4 max-w-4xl mx-auto">
-          {displayedItems.map((item) => {
-            const isExpanded = expandedId === item.id;
-            const isEditing = editingId === item.id;
-
-            return (
-              <div
-                key={item.id}
-                draggable={!isEditing}
-                onDragStart={(e) => handleDragStart(e, item.id)}
-                onDragOver={(e) => handleDragOver(e, item.id)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, item.id)}
-                className={`group bg-surface border rounded-[24px] p-5 canvas-shadow transition-all duration-300 ${
-                  isExpanded 
-                    ? 'border-textPrimary ring-1 ring-textPrimary/10 shadow-lg' 
-                    : dragOverId === item.id
-                      ? 'border-dashed border-textPrimary bg-surfaceSecondary scale-[1.01] shadow-md'
-                      : item.completed 
-                        ? 'border-border hover:border-textSecondary/45 opacity-60' 
-                        : 'border-border hover:border-textSecondary/45'
-                }`}
-              >
-                {/* Header Row (Summary View) */}
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    {/* Drag Handle Icon */}
-                    <div 
-                      className="mt-1.5 text-textSecondary/30 group-hover:text-textSecondary/70 transition-colors cursor-grab active:cursor-grabbing shrink-0"
-                      title="Drag to reorder"
+                {/* Optional Subproject selection inside task creator - only if project has subprojects */}
+                {availableSubProjects.length > 0 && !subProject && (
+                  <div>
+                    <label className="block text-xs font-semibold text-textSecondary mb-1.5">
+                      Subproject <span className="text-textSecondary/60 font-normal">(Optional)</span>
+                    </label>
+                    <select
+                      value={newTaskSubProject}
+                      onChange={(e) => setNewTaskSubProject(e.target.value)}
+                      className="w-full bg-surfaceSecondary border border-border text-sm px-4 py-2.5 rounded-xl outline-none text-textPrimary font-medium font-mono focus:ring-1 focus:ring-accent"
                     >
-                      <GripVertical size={20} />
-                    </div>
-
-                    {/* Completion checkbox circular toggle */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleComplete(item.id);
-                      }}
-                      className="mt-1 flex-shrink-0 text-textSecondary hover:text-textPrimary transition-colors cursor-pointer"
-                    >
-                      {item.completed ? (
-                        <CheckCircle2 size={20} className="text-textPrimary" />
-                      ) : (
-                        <Circle size={20} />
-                      )}
-                    </button>
-
-                    <div className="flex-1 min-w-0" onClick={() => handleToggleExpand(item.id)}>
-                      {/* Priority and Date indicators */}
-                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                        {/* Priority Badge */}
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${
-                          item.priority === 'high' ? 'bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-200 border-red-200 dark:border-red-900/40' :
-                          item.priority === 'low' ? 'bg-surfaceSecondary border-border text-textSecondary' :
-                          'bg-surfaceSecondary border-border text-textPrimary'
-                        }`}>
-                          {item.priority || 'medium'}
-                        </span>
-
-                        {/* Smart Summary Badge */}
-                        {item.smartSummary && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold text-yellow-700 dark:text-yellow-200 bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-900/40">
-                            <Sparkles size={20} />
-                            <span>AI Analyzed</span>
-                          </span>
-                        )}
-
-                        {/* Deadline */}
-                        {item.scheduledDate && (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-textSecondary font-mono font-medium">
-                            <Calendar size={20} />
-                            <span>{parseLocalDate(item.scheduledDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                          </span>
-                        )}
-
-                        {/* Subproject badge if task has a subproject and viewing at project level */}
-                        {item.subProject && !subProject && (
-                          <span className="inline-flex items-center gap-1 font-mono text-[9px] px-2 py-0.5 rounded-full bg-surfaceSecondary text-textSecondary border border-border">
-                            <Folder size={11} className="opacity-70" />
-                            <span>{item.subProject}</span>
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Title or First Line */}
-                      <h3 className={`text-base font-bold text-textPrimary leading-snug ${
-                        item.completed ? 'line-through text-textSecondary/40' : ''
-                      }`}>
-                        {item.title || item.smartSummary || item.content.split('\n')[0]}
-                      </h3>
-
-                      {/* Snippet / Description Preview (Only when collapsed) */}
-                      {!isExpanded && (
-                        <p className="text-xs text-textSecondary mt-1.5 line-clamp-1 leading-relaxed">
-                          {item.content}
-                        </p>
-                      )}
-
-                      {/* Associated Tags - Always visible on task card */}
-                      {item.tags && item.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {item.tags.map((tag) => (
-                            <span 
-                              key={tag}
-                              className="inline-flex items-center text-[10px] font-medium bg-pill text-textSecondary px-2 py-0.5 rounded transition-colors hover:opacity-80"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Quick Action Buttons */}
-                  <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => setEditingModalItem(item)}
-                      className="p-1.5 hover:bg-pill rounded-full text-textSecondary hover:text-textPrimary transition-colors cursor-pointer"
-                      title="Edit task details"
-                    >
-                      <Edit2 size={20} />
-                    </button>
-                    <button
-                      onClick={() => handleToggleExpand(item.id)}
-                      className="p-1.5 hover:bg-pill rounded-full text-textSecondary hover:text-textPrimary transition-colors cursor-pointer"
-                      title={isExpanded ? "Collapse inline view" : "Expand inline view"}
-                    >
-                      <Eye size={20} />
-                    </button>
-                    <button
-                      onClick={() => onDeleteItem(item.id)}
-                      className="p-1.5 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 text-textSecondary rounded-full transition-colors cursor-pointer"
-                      title="Delete task"
-                    >
-                      <Trash2 size={20} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Expanded Sub-view (Never Navigates Away, No Modals!) */}
-                {isExpanded && (
-                  <div className="mt-5 pt-4 border-t border-border animate-fade-in space-y-4">
-                    {isEditing ? (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-xs font-semibold text-textSecondary mb-1">Edit Title</label>
-                            <input
-                              type="text"
-                              value={editTitle}
-                              onChange={(e) => setEditTitle(e.target.value)}
-                              className="w-full bg-surfaceSecondary border border-border text-xs font-bold p-2.5 rounded-lg text-textPrimary outline-none focus:ring-1 focus:ring-accent"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-semibold text-textSecondary mb-1">Edit Deadline</label>
-                            <input
-                              type="date"
-                              value={editDate}
-                              onChange={(e) => setEditDate(e.target.value)}
-                              className="w-full bg-surfaceSecondary border border-border text-xs p-2.5 rounded-lg text-textPrimary outline-none font-mono focus:ring-1 focus:ring-accent"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold text-textSecondary mb-1">Edit Content/Description</label>
-                          <textarea
-                            value={editContent}
-                            onChange={(e) => setEditContent(e.target.value)}
-                            rows={4}
-                            className="w-full bg-surfaceSecondary border border-border text-xs p-2.5 rounded-lg text-textPrimary outline-none focus:ring-1 focus:ring-accent"
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <label className="block text-xs font-semibold text-textSecondary mb-1">Edit Priority</label>
-                            <div className="flex gap-1.5">
-                              {(['low', 'medium', 'high'] as const).map(p => (
-                                <button
-                                  key={p}
-                                  type="button"
-                                  onClick={() => setEditPriority(p)}
-                                  className={`px-3 py-1 text-[10px] font-bold rounded uppercase tracking-wider border transition-all cursor-pointer ${
-                                    editPriority === p 
-                                      ? 'bg-pill-active text-pill-active-text border-pill-active' 
-                                      : 'bg-transparent text-textSecondary border-border'
-                                  }`}
-                                >
-                                  {p}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setEditingId(null)}
-                              className="px-3.5 py-1.5 text-xs font-semibold text-textSecondary hover:bg-surfaceSecondary rounded-lg transition-colors cursor-pointer"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={() => saveEdit(item.id)}
-                              className="bg-pill-active text-pill-active-text px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-sm hover:opacity-95 transition-colors cursor-pointer"
-                            >
-                              Save Changes
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-4 text-xs font-medium text-textPrimary">
-                        {/* Full description */}
-                        <div className="space-y-1">
-                          <span className="text-[10px] text-textSecondary uppercase tracking-wider font-bold">Scope Description</span>
-                          <p className="text-sm text-textPrimary leading-relaxed whitespace-pre-wrap font-medium">
-                            {item.content || "No detailed scope has been added to this task."}
-                          </p>
-                        </div>
-
-                        {/* Smart generated AI metadata if present */}
-                        {item.smartSummary && (
-                          <div className="bg-yellow-50/40 dark:bg-yellow-950/10 p-3.5 rounded-xl border border-yellow-100 dark:border-yellow-900/25">
-                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-yellow-700 dark:text-yellow-400 uppercase tracking-wider mb-1">
-                              <Sparkles size={20} />
-                              <span>Gemini Smart Synthesizer</span>
-                            </div>
-                            <p className="text-xs text-textPrimary leading-relaxed font-semibold">{item.smartSummary}</p>
-                          </div>
-                        )}
-
-                        {/* Info details grid */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-surfaceSecondary/50 border border-border/60 p-3 rounded-xl">
-                          <div>
-                            <span className="text-[9px] text-textSecondary uppercase tracking-wider font-bold block mb-0.5">Assigned to</span>
-                            <span className="font-semibold text-textPrimary">{subProject}</span>
-                          </div>
-                          <div>
-                            <span className="text-[9px] text-textSecondary uppercase tracking-wider font-bold block mb-0.5">Priority</span>
-                            <span className="font-semibold uppercase text-textPrimary">{item.priority || 'medium'}</span>
-                          </div>
-                          <div>
-                            <span className="text-[9px] text-textSecondary uppercase tracking-wider font-bold block mb-0.5">Created on</span>
-                            <span className="font-mono text-textPrimary">{new Date(item.createdAt).toLocaleDateString()}</span>
-                          </div>
-                          <div>
-                            <span className="text-[9px] text-textSecondary uppercase tracking-wider font-bold block mb-0.5">Status</span>
-                            <span className="font-semibold text-textPrimary">{item.completed ? '✓ Completed' : '○ Active'}</span>
-                          </div>
-                        </div>
-
-                        {/* Associated Tags */}
-                        {item.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 items-center">
-                            <Tag size={20} className="text-textSecondary" />
-                            {item.tags.map(t => (
-                              <span key={t} className="text-[10px] text-textSecondary bg-pill px-2 py-0.5 rounded">
-                                {t}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Bottom Actions Row */}
-                        <div className="flex items-center justify-between border-t border-border pt-3">
-                          <button
-                            onClick={() => setEditingModalItem(item)}
-                            className="flex items-center gap-1.5 text-xs text-textSecondary hover:text-textPrimary font-semibold transition-colors cursor-pointer"
-                          >
-                            <Edit2 size={20} />
-                            <span>Edit Scope Details</span>
-                          </button>
-
-                          <button
-                            onClick={() => onDeleteItem(item.id)}
-                            className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 font-semibold transition-colors cursor-pointer"
-                          >
-                            <Trash2 size={20} />
-                            <span>Erase Task</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                      <option value="">None (Directly under {project})</option>
+                      {availableSubProjects.map(sp => (
+                        <option key={sp.id || sp.name} value={sp.name}>{sp.name}</option>
+                      ))}
+                    </select>
                   </div>
                 )}
+
+                <div className="flex gap-2 justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowNewForm(false)}
+                    className="px-4 py-2 text-xs font-semibold text-textSecondary hover:bg-surfaceSecondary rounded-lg cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-pill-active text-pill-active-text hover:opacity-90 px-5 py-2 rounded-xl text-xs font-semibold shadow-sm cursor-pointer"
+                  >
+                    Create Task
+                  </button>
+                </div>
               </div>
-            );
-          })}
+            </form>
+          )}
+
+          {/* Task Stack List */}
+          {displayedItems.length === 0 ? (
+            <div className="bg-surface border border-border rounded-[28px] canvas-shadow p-12 text-center flex flex-col items-center justify-center min-h-[35vh]">
+              <div className="mb-4 inline-flex p-4 rounded-full bg-surfaceSecondary text-textSecondary border border-border">
+                <Check size={20} />
+              </div>
+              <h3 className="text-lg font-headline font-semibold text-textPrimary mb-1">
+                Task Queue Clear!
+              </h3>
+              <p className="text-sm text-textSecondary max-w-sm">
+                No active tasks found in this view. Add a new task to organize your work.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {displayedItems.map((item) => {
+                const isExpanded = expandedId === item.id;
+                const isEditing = editingId === item.id;
+
+                return (
+                  <div
+                    key={item.id}
+                    draggable={!isEditing}
+                    onDragStart={(e) => handleDragStart(e, item.id)}
+                    onDragOver={(e) => handleDragOver(e, item.id)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, item.id)}
+                    className={`group bg-surface border rounded-[20px] p-4 canvas-shadow transition-all duration-200 ${
+                      isExpanded 
+                        ? 'border-textPrimary ring-1 ring-textPrimary/10 shadow-md' 
+                        : item.completed 
+                          ? 'border-border opacity-60' 
+                          : 'border-border hover:border-textSecondary/40'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <button
+                        onClick={() => onToggleComplete(item.id)}
+                        className="mt-0.5 text-textSecondary hover:text-textPrimary transition-colors cursor-pointer shrink-0"
+                      >
+                        {item.completed ? (
+                          <CheckCircle2 size={18} className="text-green-500 fill-green-500/10" />
+                        ) : (
+                          <Circle size={18} />
+                        )}
+                      </button>
+
+                      <div className="flex-1 min-w-0" onClick={() => handleToggleExpand(item.id)}>
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className={`text-sm font-semibold text-textPrimary cursor-pointer ${item.completed ? 'line-through text-textSecondary' : ''}`}>
+                            {item.title || item.content}
+                          </span>
+
+                          {item.priority && item.priority !== 'NONE' && (
+                            <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider font-mono ${
+                              item.priority === 'high' || item.priority === 'HIGH' || item.priority === 'URGENT'
+                                ? 'bg-red-50 text-red-600 border border-red-200 dark:bg-red-950/20 dark:text-red-400'
+                                : 'bg-surfaceSecondary text-textSecondary border border-border'
+                            }`}>
+                              {item.priority}
+                            </span>
+                          )}
+
+                          {getSubProjectName(item) && !subProject && (
+                            <span className="text-[10px] text-textSecondary bg-surfaceSecondary border border-border px-2 py-0.5 rounded-md flex items-center gap-1 font-mono">
+                              <Folder size={10} />
+                              <span>{getSubProjectName(item)}</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {item.scheduledDate && (
+                          <div className="text-[10px] text-textSecondary flex items-center gap-1 font-mono">
+                            <Calendar size={11} />
+                            <span>{item.scheduledDate}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Hover Actions */}
+                      <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => setEditingModalItem(item)}
+                          className="p-1.5 text-textSecondary hover:text-textPrimary hover:bg-surfaceSecondary rounded-lg transition-colors cursor-pointer"
+                          title="Edit Task"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={() => onDeleteItem(item.id)}
+                          className="p-1.5 text-textSecondary hover:text-red-500 hover:bg-surfaceSecondary rounded-lg transition-colors cursor-pointer"
+                          title="Delete Task"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
+      {/* ========================================================================= */}
+      {/* SECTION 2: NOTES */}
+      {/* ========================================================================= */}
+      {activeSection === 'notes' && (
+        <div>
+          {/* New Note Inline Form */}
+          {showNewNoteForm && (
+            <form
+              onSubmit={handleCreateNoteSubmit}
+              className="bg-surface border border-border rounded-[24px] p-6 mb-8 canvas-shadow animate-scale-in"
+            >
+              <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
+                <h3 className="text-sm font-bold text-textPrimary flex items-center gap-1.5">
+                  <FileText size={18} className="text-accent" />
+                  <span>Create Note in {subProject || project || area}</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowNewNoteForm(false)}
+                  className="text-xs text-textSecondary hover:text-textPrimary font-medium cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-textSecondary mb-1.5">Title (Optional)</label>
+                  <input
+                    type="text"
+                    value={newNoteTitle}
+                    onChange={(e) => setNewNoteTitle(e.target.value)}
+                    placeholder="Note heading or reference..."
+                    className="w-full bg-surfaceSecondary border border-border text-sm px-4 py-2 rounded-xl outline-none text-textPrimary focus:ring-1 focus:ring-accent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-textSecondary mb-1.5">Content (Markdown) *</label>
+                  <textarea
+                    required
+                    value={newNoteContent}
+                    onChange={(e) => setNewNoteContent(e.target.value)}
+                    placeholder="Write your documentation, meeting notes, or ideas..."
+                    className="w-full bg-surfaceSecondary border border-border text-sm px-4 py-2.5 rounded-xl outline-none text-textPrimary min-h-[100px] font-mono text-xs focus:ring-1 focus:ring-accent"
+                    rows={4}
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowNewNoteForm(false)}
+                    className="px-4 py-2 text-xs font-semibold text-textSecondary hover:bg-surfaceSecondary rounded-lg cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingNote || !newNoteContent.trim()}
+                    className="bg-pill-active text-pill-active-text hover:opacity-90 px-5 py-2 rounded-xl text-xs font-semibold shadow-sm cursor-pointer disabled:opacity-50"
+                  >
+                    {isSubmittingNote ? 'Saving...' : 'Save Note'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+
+          {workspaceNotes.length === 0 ? (
+            <div className="bg-surface border border-border rounded-[28px] canvas-shadow p-12 text-center flex flex-col items-center justify-center min-h-[30vh]">
+              <div className="mb-4 inline-flex p-4 rounded-full bg-surfaceSecondary text-textSecondary border border-border">
+                <FileText size={24} />
+              </div>
+              <h3 className="text-lg font-headline font-semibold text-textPrimary mb-1">
+                No notes in this workspace
+              </h3>
+              <p className="text-xs text-textSecondary max-w-sm">
+                Add references, documentation, or technical specs directly to this workspace.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {workspaceNotes.map((note) => (
+                <div
+                  key={note.id}
+                  className="bg-surface border border-border hover:border-textSecondary/40 rounded-2xl p-5 canvas-shadow transition-all group flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-bold text-textPrimary truncate">
+                        {note.title || 'Untitled Note'}
+                      </h4>
+                      {onDeleteNote && (
+                        <button
+                          onClick={() => onDeleteNote(note.id)}
+                          className="opacity-0 group-hover:opacity-100 p-1 text-textSecondary hover:text-red-500 transition-opacity cursor-pointer"
+                          title="Delete note"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-xs text-textSecondary line-clamp-3 whitespace-pre-wrap font-sans">
+                      {note.content}
+                    </p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-border flex items-center justify-between text-[10px] text-textSecondary font-mono">
+                    <span>Updated {new Date(note.updatedAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SECTION 3: HABITS (Area Workspace Only) */}
+      {/* ========================================================================= */}
+      {activeSection === 'habits' && isAreaWorkspace && (
+        <div>
+          {/* New Habit Inline Form */}
+          {showNewHabitForm && (
+            <form
+              onSubmit={handleCreateHabitSubmit}
+              className="bg-surface border border-border rounded-[24px] p-6 mb-8 canvas-shadow animate-scale-in max-w-md"
+            >
+              <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
+                <h3 className="text-sm font-bold text-textPrimary flex items-center gap-1.5">
+                  <Brain size={18} className="text-accent" />
+                  <span>Add Habit to {area}</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowNewHabitForm(false)}
+                  className="text-xs text-textSecondary hover:text-textPrimary font-medium cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-textSecondary mb-1.5">Habit Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newHabitName}
+                    onChange={(e) => setNewHabitName(e.target.value)}
+                    placeholder="e.g. Daily Standup Review..."
+                    className="w-full bg-surfaceSecondary border border-border text-sm px-4 py-2 rounded-xl outline-none text-textPrimary focus:ring-1 focus:ring-accent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-textSecondary mb-1.5">Frequency</label>
+                  <select
+                    value={newHabitFreq}
+                    onChange={(e) => setNewHabitFreq(e.target.value as any)}
+                    className="w-full bg-surfaceSecondary border border-border text-xs px-3 py-2 rounded-xl text-textPrimary outline-none focus:ring-1 focus:ring-accent"
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                  </select>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowNewHabitForm(false)}
+                    className="px-4 py-2 text-xs font-semibold text-textSecondary hover:bg-surfaceSecondary rounded-lg cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingHabit || !newHabitName.trim()}
+                    className="bg-pill-active text-pill-active-text hover:opacity-90 px-5 py-2 rounded-xl text-xs font-semibold shadow-sm cursor-pointer disabled:opacity-50"
+                  >
+                    {isSubmittingHabit ? 'Adding...' : 'Add Habit'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+
+          {workspaceHabits.length === 0 ? (
+            <div className="bg-surface border border-border rounded-[28px] canvas-shadow p-12 text-center flex flex-col items-center justify-center min-h-[30vh]">
+              <div className="mb-4 inline-flex p-4 rounded-full bg-surfaceSecondary text-textSecondary border border-border">
+                <Brain size={24} />
+              </div>
+              <h3 className="text-lg font-headline font-semibold text-textPrimary mb-1">
+                No habits assigned to {area}
+              </h3>
+              <p className="text-xs text-textSecondary max-w-sm">
+                Build momentum by attaching daily and weekly routines to this Life Area.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {workspaceHabits.map((habit) => {
+                const isCompletedToday = Boolean(habit.completedToday);
+
+                return (
+                  <div
+                    key={habit.id}
+                    className="bg-surface border border-border rounded-2xl p-4 flex items-center justify-between gap-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      {onToggleHabitDay && (
+                        <button
+                          onClick={() => onToggleHabitDay(habit.id, todayStr)}
+                          className={`w-7 h-7 rounded-lg transition-colors flex items-center justify-center cursor-pointer ${
+                            isCompletedToday
+                              ? 'bg-green-500 text-white'
+                              : 'bg-surfaceSecondary text-textSecondary border border-border hover:border-textPrimary'
+                          }`}
+                        >
+                          <Check size={16} strokeWidth={3} />
+                        </button>
+                      )}
+                      <div>
+                        <h4 className="text-sm font-semibold text-textPrimary">{habit.name}</h4>
+                        <div className="flex items-center gap-2 text-[10px] text-textSecondary font-mono mt-0.5">
+                          <span className="uppercase">{habit.frequency}</span>
+                          {(habit.streak > 0 || (habit.currentStreak || 0) > 0) && (
+                            <span className="flex items-center gap-0.5 text-amber-500 font-bold">
+                              <Zap size={11} className="fill-current" />
+                              <span>{habit.currentStreak || habit.streak}d streak</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 7-day strip */}
+                    <div className="flex items-center gap-1.5">
+                      {last7Days.map((d) => {
+                        const isDone = d.isToday
+                          ? isCompletedToday
+                          : (Array.isArray(habit.completedDays) && habit.completedDays.includes(d.dateStr));
+                        return (
+                          <div
+                            key={d.dateStr}
+                            className={`w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-mono ${
+                              isDone ? 'bg-green-500 text-white font-bold' : 'bg-surfaceSecondary text-textSecondary/40'
+                            }`}
+                            title={`${d.dateStr}: ${isDone ? 'Completed' : 'Missed'}`}
+                          >
+                            {d.dayName}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Edit Modal */}
       {editingModalItem && (
         <EditInboxItemModal
           item={editingModalItem}
           hierarchy={hierarchy}
-          isOpen={true}
-          onClose={() => setEditingModalItem(null)}
           onSave={async (id, updates) => {
-            await onUpdateTask(id, updates);
+            onUpdateTask(id, updates);
             setEditingModalItem(null);
           }}
+          onClose={() => setEditingModalItem(null)}
         />
       )}
     </div>

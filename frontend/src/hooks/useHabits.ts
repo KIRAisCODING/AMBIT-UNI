@@ -86,7 +86,7 @@ export function useHabits(filterParams?: { areaId?: string }) {
       const data = await apiClient.post<any>('/api/habits', payload);
       const mapped = mapBackendHabitToFrontend(data);
       setHabits((prev) => [mapped, ...prev]);
-      invalidateQueries(['dashboard', 'calendar', 'analytics']);
+      invalidateQueries(['habits', 'dashboard', 'calendar', 'analytics']);
       return mapped;
     } catch (err: any) {
       console.error('Failed to add habit:', err);
@@ -121,7 +121,7 @@ export function useHabits(filterParams?: { areaId?: string }) {
       const data = await apiClient.post<any>(`/api/habits/${id}/toggle`, { date: dateStr });
       const mapped = mapBackendHabitToFrontend(data);
       setHabits((prev) => prev.map((h) => (h.id === id ? mapped : h)));
-      invalidateQueries(['dashboard', 'calendar', 'analytics']);
+      invalidateQueries(['habits', 'dashboard', 'calendar', 'analytics']);
     } catch (err: any) {
       console.error('Failed to toggle habit:', err);
       // Rollback
@@ -136,7 +136,7 @@ export function useHabits(filterParams?: { areaId?: string }) {
 
     try {
       await apiClient.delete(`/api/habits/${id}`);
-      invalidateQueries(['dashboard', 'calendar', 'analytics']);
+      invalidateQueries(['habits', 'dashboard', 'calendar', 'analytics']);
     } catch (err: any) {
       console.error('Failed to delete habit:', err);
       setHabits(previous);
@@ -163,7 +163,7 @@ export function useHabits(filterParams?: { areaId?: string }) {
       const data = await apiClient.patch<any>(`/api/habits/${id}`, payload);
       const mapped = mapBackendHabitToFrontend(data);
       setHabits((prev) => prev.map((h) => (h.id === id ? mapped : h)));
-      invalidateQueries(['dashboard', 'calendar', 'analytics']);
+      invalidateQueries(['habits', 'dashboard', 'calendar', 'analytics']);
       return mapped;
     } catch (err: any) {
       console.error('Failed to update habit:', err);

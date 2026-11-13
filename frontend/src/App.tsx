@@ -17,7 +17,7 @@ import Sidebar from './components/Sidebar';
 import CaptureComposer from './components/CaptureComposer';
 import InboxView from './components/InboxView';
 import NotesView from './components/NotesView';
-import UnassignedView from './components/UnassignedView';
+import TasksView from './components/TasksView';
 import HabitsView from './components/HabitsView';
 import CalendarView from './components/CalendarView';
 import AnalyticsView from './components/AnalyticsView';
@@ -46,7 +46,7 @@ export default function App() {
   const { habits, addHabit, toggleHabitDay, deleteHabit, updateHabit } = useHabits();
   const { scheduleTask, refreshCalendar } = useCalendar();
   const { createCapture, refreshCaptures } = useCaptures();
-  const { createNote } = useNotes();
+  const { createNote, notes, deleteNote } = useNotes();
 
   const [selectedSubProject, setSelectedSubProject] = useState<WorkspaceSelection | null>(null);
 
@@ -224,6 +224,8 @@ export default function App() {
           project={selectedSubProject.project}
           subProject={selectedSubProject.subProject}
           items={items}
+          notes={notes}
+          habits={habits}
           hierarchy={hierarchy}
           onCreateSubProject={createSubProject}
           onToggleComplete={handleToggleComplete}
@@ -236,6 +238,14 @@ export default function App() {
             await updateTask(id, updates);
             await refreshCalendar();
           }}
+          onCreateNote={async (note) => {
+            await createNote(note);
+          }}
+          onDeleteNote={async (id) => {
+            await deleteNote(id);
+          }}
+          onAddHabit={handleAddHabit}
+          onToggleHabitDay={handleToggleHabitDay}
           onReorderTasks={handleReorderTasks}
         />
       );
@@ -270,6 +280,24 @@ export default function App() {
             }}
           />
         );
+      case 'Tasks':
+        return (
+          <TasksView 
+            tasks={items}
+            hierarchy={hierarchy}
+            onToggleComplete={handleToggleComplete}
+            onDeleteTask={handleDeleteItem}
+            onUpdateTask={async (id, updates) => {
+              await updateTask(id, updates);
+              await refreshCalendar();
+            }}
+            onCreateTask={async (newTask) => {
+              await createTask(newTask);
+              await refreshCalendar();
+            }}
+            onAssignTask={handleAssignItem}
+          />
+        );
       case 'Notes':
         return (
           <NotesView 
@@ -278,11 +306,21 @@ export default function App() {
         );
       case 'Unassigned':
         return (
-          <UnassignedView 
-            items={items} 
-            onAssignItem={handleAssignItem}
-            onDeleteItem={handleDeleteItem}
+          <TasksView 
+            tasks={items}
             hierarchy={hierarchy}
+            initialFilter="unassigned"
+            onToggleComplete={handleToggleComplete}
+            onDeleteTask={handleDeleteItem}
+            onUpdateTask={async (id, updates) => {
+              await updateTask(id, updates);
+              await refreshCalendar();
+            }}
+            onCreateTask={async (newTask) => {
+              await createTask(newTask);
+              await refreshCalendar();
+            }}
+            onAssignTask={handleAssignItem}
           />
         );
       case 'Habits':
@@ -328,7 +366,7 @@ export default function App() {
     }
   };
 
-  const showCaptureComposer = (activeTab === 'Inbox' || activeTab === 'Notes' || activeTab === 'Habits' || activeTab === 'Unassigned') && !selectedSubProject;
+  const showCaptureComposer = activeTab === 'Inbox' && !selectedSubProject;
 
   return (
     <div className="min-h-screen bg-background text-textPrimary flex flex-col md:flex-row transition-colors duration-300">

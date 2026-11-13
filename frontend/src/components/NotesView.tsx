@@ -48,7 +48,11 @@ export default function NotesView({
   // Filter notes
   const filteredNotes = notes.filter((n) => {
     if (n.archivedAt) return false; // Exclude archived notes
-    if (selectedAreaId && n.areaId !== selectedAreaId) return false;
+    if (selectedAreaId === '__unassigned__') {
+      if (n.areaId || n.projectId || n.subProjectId) return false;
+    } else if (selectedAreaId && n.areaId !== selectedAreaId) {
+      return false;
+    }
     if (selectedTag && !n.tags.includes(selectedTag)) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -167,6 +171,24 @@ export default function NotesView({
           }`}
         >
           All Notes
+        </button>
+
+        <button
+          onClick={() => {
+            setSelectedTag(null);
+            setSelectedAreaId(selectedAreaId === '__unassigned__' ? '' : '__unassigned__');
+          }}
+          className={`px-3 py-1 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+            selectedAreaId === '__unassigned__'
+              ? 'bg-pill-active text-pill-active-text shadow-sm'
+              : 'bg-pill text-textSecondary hover:text-textPrimary'
+          }`}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+          <span>Unassigned</span>
+          <span className="text-[10px] opacity-75 font-mono">
+            ({notes.filter((n) => !n.archivedAt && !n.areaId && !n.projectId && !n.subProjectId).length})
+          </span>
         </button>
 
         {hierarchy.map((area) => (

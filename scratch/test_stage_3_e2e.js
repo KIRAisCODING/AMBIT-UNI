@@ -375,8 +375,9 @@ async function runStage3Tests() {
 
   // 4.2 Toggle Habit Daily Check-in
   {
+    const testDate = new Date().toISOString().split('T')[0];
     const req = makeRequest(`http://localhost:3000/api/habits/${promotedHabit.id}/toggle`, 'POST', {
-      date: '2026-11-11',
+      date: testDate,
     });
     const res = await habitToggleRoute.POST(req, { params: Promise.resolve({ id: promotedHabit.id }) });
     assert(res.status === 200, 'POST /api/habits/:id/toggle returns HTTP 200');
@@ -386,7 +387,7 @@ async function runStage3Tests() {
 
     // Verify HabitLog record created
     const logCheck = await prisma.habitLog.findFirst({
-      where: { habitId: promotedHabit.id, date: '2026-11-11' },
+      where: { habitId: promotedHabit.id, date: testDate },
     });
     assert(logCheck !== null, 'HabitLog entry exists in database');
   }

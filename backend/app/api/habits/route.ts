@@ -152,7 +152,10 @@ export async function POST(req: Request) {
 
     if (areaId) {
       const area = await prisma.area.findFirst({
-        where: { id: areaId, userId },
+        where: {
+          userId,
+          OR: [{ id: areaId }, { name: areaId }],
+        },
       });
       if (!area) {
         return NextResponse.json(
@@ -160,6 +163,7 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
+      areaId = area.id;
     }
 
     // Validate StartDate

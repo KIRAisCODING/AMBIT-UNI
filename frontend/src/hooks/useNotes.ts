@@ -43,7 +43,7 @@ export function useNotes(filterParams?: { areaId?: string; projectId?: string; s
     try {
       const newNote = await apiClient.post<Note>('/api/notes', input);
       setNotes((prev) => [newNote, ...prev]);
-      invalidateQueries(['dashboard']);
+      invalidateQueries(['notes', 'dashboard']);
       return newNote;
     } catch (err: any) {
       console.error('Failed to create note:', err);
@@ -55,7 +55,7 @@ export function useNotes(filterParams?: { areaId?: string; projectId?: string; s
     try {
       const updated = await apiClient.patch<Note>(`/api/notes/${id}`, updates);
       setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
-      invalidateQueries(['dashboard']);
+      invalidateQueries(['notes', 'dashboard']);
       return updated;
     } catch (err: any) {
       console.error('Failed to update note:', err);
@@ -67,7 +67,8 @@ export function useNotes(filterParams?: { areaId?: string; projectId?: string; s
     try {
       await apiClient.delete(`/api/notes/${id}`);
       setNotes((prev) => prev.filter((n) => n.id !== id));
-      invalidateQueries(['dashboard']);
+      invalidateQueries(['notes', 'dashboard']);
+      return;
     } catch (err: any) {
       console.error('Failed to delete note:', err);
       throw err;

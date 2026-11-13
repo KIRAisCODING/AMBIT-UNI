@@ -68,6 +68,9 @@ export function useTasks(filterParams?: { areaId?: string; projectId?: string; s
       areaId: input.areaId || null,
       projectId: input.projectId || null,
       subProjectId: input.subProjectId || null,
+      area: input.area || null,
+      project: input.project || null,
+      subProject: input.subProject || null,
       tags: input.tags || [],
     };
 
@@ -75,7 +78,7 @@ export function useTasks(filterParams?: { areaId?: string; projectId?: string; s
       const data = await apiClient.post<any>('/api/tasks', payload);
       const normalized = normalizeTask(data);
       setTasks((prev) => [normalized, ...prev]);
-      invalidateQueries(['dashboard', 'calendar', 'analytics']);
+      invalidateQueries(['tasks', 'dashboard', 'calendar', 'analytics']);
       return normalized;
     } catch (err: any) {
       console.error('Failed to create task:', err);
@@ -115,7 +118,7 @@ export function useTasks(filterParams?: { areaId?: string; projectId?: string; s
       const data = await apiClient.patch<any>(`/api/tasks/${id}`, payload);
       const normalized = normalizeTask(data);
       setTasks((prev) => prev.map((t) => (t.id === id ? normalized : t)));
-      invalidateQueries(['dashboard', 'calendar', 'analytics']);
+      invalidateQueries(['tasks', 'dashboard', 'calendar', 'analytics']);
       return normalized;
     } catch (err: any) {
       console.error('Failed to update task:', err);
@@ -138,7 +141,7 @@ export function useTasks(filterParams?: { areaId?: string; projectId?: string; s
 
     try {
       await apiClient.delete(`/api/tasks/${id}`);
-      invalidateQueries(['dashboard', 'calendar', 'analytics']);
+      invalidateQueries(['tasks', 'dashboard', 'calendar', 'analytics']);
     } catch (err: any) {
       console.error('Failed to delete task:', err);
       setTasks(previousTasks); // Rollback
@@ -227,13 +230,28 @@ function normalizeTask(raw: any): Task & { content: string; completed: boolean; 
     areaId: raw.areaId || null,
     projectId: raw.projectId || null,
     subProjectId: raw.subProjectId || null,
-    area: raw.area ? { id: raw.area.id, name: raw.area.name } : (raw.areaName ? { id: raw.areaId, name: raw.areaName } : null),
-    project: raw.project ? { id: raw.project.id, name: raw.project.name } : (raw.projectName ? { id: raw.projectId, name: raw.projectName } : null),
-    subProject: raw.subProject ? { id: raw.subProject.id, name: raw.subProject.name } : null,
+    area: typeof raw.area === 'object' && raw.area
+      ? { id: raw.area.id, name: raw.area.name }
+      : (typeof raw.area === 'string' && raw.area
+        ? { id: raw.areaId || '', name: raw.area }
+        : (raw.areaName ? { id: raw.areaId || '', name: raw.areaName } : null)),
+    project: typeof raw.project === 'object' && raw.project
+      ? { id: raw.project.id, name: raw.project.name }
+      : (typeof raw.project === 'string' && raw.project
+        ? { id: raw.projectId || '', name: raw.project }
+        : (raw.projectName ? { id: raw.projectId || '', name: raw.projectName } : null)),
+    subProject: typeof raw.subProject === 'object' && raw.subProject
+      ? { id: raw.subProject.id, name: raw.subProject.name }
+      : (typeof raw.subProject === 'string' && raw.subProject
+        ? { id: raw.subProjectId || '', name: raw.subProject }
+        : (raw.subProjectName ? { id: raw.subProjectId || '', name: raw.subProjectName } : null)),
+    areaName: typeof raw.area === 'string' ? raw.area : (raw.area?.name || raw.areaName || null),
+    projectName: typeof raw.project === 'string' ? raw.project : (raw.project?.name || raw.projectName || null),
+    subProjectName: typeof raw.subProject === 'string' ? raw.subProject : (raw.subProject?.name || raw.subProjectName || null),
     tags: Array.isArray(raw.tags)
       ? raw.tags.map((t: any) => (typeof t === 'string' ? t : t.name))
       : [],
-    assignment: (raw.areaId || raw.projectId) ? 'now' : 'later', // Backward compatibility
+    assignment: (raw.areaId || raw.projectId || raw.subProjectId || (raw.area && raw.area !== '') || (raw.project && raw.project !== '')) ? 'now' : 'later', // Backward compatibility
     createdAt: raw.createdAt || new Date().toISOString(),
     updatedAt: raw.updatedAt || new Date().toISOString(),
   };
