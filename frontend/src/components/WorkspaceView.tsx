@@ -80,6 +80,9 @@ export default function WorkspaceView({
     );
     if (!isAssigned) return false;
 
+    const hasSubProject = Boolean(getSubProjectId(item) || getSubProjectName(item));
+    const hasProject = Boolean(getProjectId(item) || getProjectName(item));
+
     if (subProject) {
       const matchSub = (selectedSubProjectNode?.id && getSubProjectId(item) === selectedSubProjectNode.id) ||
         (getSubProjectName(item).toLowerCase() === subProject.toLowerCase());
@@ -87,11 +90,13 @@ export default function WorkspaceView({
     }
 
     if (project) {
+      if (hasSubProject) return false;
       const matchProj = (currentProjectNode?.id && getProjectId(item) === currentProjectNode.id) ||
         (getProjectName(item).toLowerCase() === project.toLowerCase());
       return matchProj;
     }
 
+    if (hasProject || hasSubProject) return false;
     const matchArea = (currentAreaNode?.id && getAreaId(item) === currentAreaNode.id) ||
       (getAreaName(item).toLowerCase() === area.toLowerCase());
     return matchArea;
@@ -109,6 +114,9 @@ export default function WorkspaceView({
   const workspaceNotes = notes.filter((n) => {
     if (n.archivedAt) return false;
 
+    const hasSubProject = Boolean(n.subProjectId || (typeof n.subProject === 'object' && n.subProject) || (typeof n.subProject === 'string' && n.subProject));
+    const hasProject = Boolean(n.projectId || (typeof n.project === 'object' && n.project) || (typeof n.project === 'string' && n.project));
+
     if (subProject) {
       return Boolean(
         (selectedSubProjectNode?.id && n.subProjectId === selectedSubProjectNode.id) ||
@@ -118,6 +126,7 @@ export default function WorkspaceView({
     }
 
     if (project) {
+      if (hasSubProject) return false;
       return Boolean(
         (currentProjectNode?.id && n.projectId === currentProjectNode.id) ||
         (typeof n.project === 'object' && n.project?.name?.toLowerCase() === project.toLowerCase()) ||
@@ -125,6 +134,7 @@ export default function WorkspaceView({
       );
     }
 
+    if (hasProject || hasSubProject) return false;
     return Boolean(
       (currentAreaNode?.id && n.areaId === currentAreaNode.id) ||
       (typeof n.area === 'object' && n.area?.name?.toLowerCase() === area.toLowerCase()) ||

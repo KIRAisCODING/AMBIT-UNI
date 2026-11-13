@@ -42,6 +42,7 @@ export async function GET(req: Request) {
 
     // 3. Hierarchy filters
     const unassignedParam = searchParams.get("unassigned");
+    const directParam = searchParams.get("direct");
     if (unassignedParam === "true") {
       where.areaId = null;
       where.projectId = null;
@@ -49,16 +50,27 @@ export async function GET(req: Request) {
     } else if (subProjectId) {
       where.subProjectId = subProjectId;
     } else if (projectId) {
-      where.OR = [
-        { projectId: projectId },
-        { subProject: { projectId: projectId } },
-      ];
+      if (directParam === "true") {
+        where.projectId = projectId;
+        where.subProjectId = null;
+      } else {
+        where.OR = [
+          { projectId: projectId },
+          { subProject: { projectId: projectId } },
+        ];
+      }
     } else if (areaId) {
-      where.OR = [
-        { areaId: areaId },
-        { project: { areaId: areaId } },
-        { subProject: { project: { areaId: areaId } } },
-      ];
+      if (directParam === "true") {
+        where.areaId = areaId;
+        where.projectId = null;
+        where.subProjectId = null;
+      } else {
+        where.OR = [
+          { areaId: areaId },
+          { project: { areaId: areaId } },
+          { subProject: { project: { areaId: areaId } } },
+        ];
+      }
     }
 
     // 4. Tag filter

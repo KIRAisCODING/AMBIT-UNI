@@ -438,16 +438,13 @@ async function run() {
       assert(body.success === true, 'Response indicates success: true');
 
       // Verify User A data is wiped
-      const [tasksCount, notesCount, habitsCount, habitLogsCount, areasCount, projectsCount, capturesCount] =
-        await Promise.all([
-          prisma.task.count({ where: { userId: userAId } }),
-          prisma.note.count({ where: { userId: userAId } }),
-          prisma.habit.count({ where: { userId: userAId } }),
-          prisma.habitLog.count({ where: { userId: userAId } }),
-          prisma.area.count({ where: { userId: userAId } }),
-          prisma.project.count({ where: { userId: userAId } }),
-          prisma.capture.count({ where: { userId: userAId } }),
-        ]);
+      const tasksCount = await prisma.task.count({ where: { userId: userAId } });
+      const notesCount = await prisma.note.count({ where: { userId: userAId } });
+      const habitsCount = await prisma.habit.count({ where: { userId: userAId } });
+      const habitLogsCount = await prisma.habitLog.count({ where: { userId: userAId } });
+      const areasCount = await prisma.area.count({ where: { userId: userAId } });
+      const projectsCount = await prisma.project.count({ where: { userId: userAId } });
+      const capturesCount = await prisma.capture.count({ where: { userId: userAId } });
 
       assert(tasksCount === 0, 'User A tasks count is 0 after clear');
       assert(notesCount === 0, 'User A notes count is 0 after clear');
